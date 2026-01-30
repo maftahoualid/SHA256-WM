@@ -44,6 +44,17 @@ int open_fifo_write(const char* path) {
     return fd;
 }
 
+int send_response(const char* fifo, response_msg_t resp) {
+    int fd = open_fifo_write(fifo);
+    if (fd != -1) {
+        if (write_exact(fd, &resp, sizeof(resp)) == -1) {
+            printf("Warning: Failed to send response to %s\n", fifo);
+        }
+        close(fd);
+    }
+    return fd;
+}
+
 int read_exact(int fd, void* buf, size_t n) {
     char* p = (char*)buf;
     size_t remaining = n;

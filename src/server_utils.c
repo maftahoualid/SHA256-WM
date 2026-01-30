@@ -361,19 +361,9 @@ void* worker_thread(void* arg) {
         long mtime_nsec;
 
         if (size == -1 || get_file_mtime(job.path, &mtime_sec, &mtime_nsec) == -1) {
-            response_msg_t resp;
-            resp.type = RESP_ERROR;
-            resp.error_code = errno;
-            snprintf(resp.error_msg, sizeof(resp.error_msg),
-                    "Cannot access file: %s", strerror(errno));
-
-            int resp_fd = open_fifo_write(job.resp_fifo);
-            if (resp_fd != -1) {
-                if (write_exact(resp_fd, &resp, sizeof(resp)) == -1) {
-                    printf("Warning: Failed to send error response to client\n");
-                }
-                close(resp_fd);
-            }
+            response_msg_t resp = { .type = RESP_ERROR, .error_code = errno };
+            snprintf(resp.error_msg, sizeof(resp.error_msg), "Cannot access file: %s", strerror(errno));
+            send_response(job.resp_fifo, resp);
             continue;
         }
 
@@ -382,18 +372,10 @@ void* worker_thread(void* arg) {
 
         if (!cache_hit) {
             if (compute_sha256(job.path, hash_result) == -1) {
-                response_msg_t resp;
-                resp.type = RESP_ERROR;
-                resp.error_code = errno;
-                snprintf(resp.error_msg, sizeof(resp.error_msg),
-                        "Cannot compute hash: %s", strerror(errno));
-
-                int resp_fd = open_fifo_write(job.resp_fifo);
-                if (resp_fd != -1) {
-                    write_exact(resp_fd, &resp, sizeof(resp));
-                    close(resp_fd);
-                }
-                continue;
+                    response_msg_t resp = { .type = RESP_ERROR, .error_code = errno };
+                    snprintf(resp.error_msg, sizeof(resp.error_msg), "Cannot compute hash: %s", strerror(errno));
+                    send_response(job.resp_fifo, resp);
+                    continue;
             }
 
             cache_store(&ctx->cache, job.path, size, mtime_sec, mtime_nsec, hash_result);
@@ -403,21 +385,10 @@ void* worker_thread(void* arg) {
             pthread_mutex_unlock(&ctx->stats_mtx);
         }
 
-        response_msg_t resp;
-        resp.type = RESP_HASH;
+        response_msg_t resp = { .type = RESP_HASH, .error_code = 0, .error_msg = "" };
         strcpy(resp.hash, hash_result);
-        resp.error_code = 0;
-        resp.error_msg[0] = '\0';
-
-        int resp_fd = open_fifo_write(job.resp_fifo);
-        if (resp_fd != -1) {
-            if (write_exact(resp_fd, &resp, sizeof(resp)) == -1) {
-                printf("Warning: Failed to send response to client\n");
-            }
-            close(resp_fd);
-        } else {
-            printf("Warning: Cannot open response FIFO for client\n");
-        }
+        resp_fd = send_response(job.resp_fifo, resp);
+        if (resp_fd == -1) printf("Warning: Cannot open response FIFO for client\n");
 
         clock_gettime(CLOCK_MONOTONIC, &end_time);
         double processing_time = get_time_diff(start_time, end_time);
@@ -519,35 +490,17 @@ int server_run(server_ctx_t* ctx) {
 
             switch (req.type) {
                 case REQ_HASH_FILE: {
-                    // Controllo preliminare file
                     if (!file_exists(req.path)) {
-                        response_msg_t resp;
-                        resp.type = RESP_ERROR;
-                        resp.error_code = ENOENT;
-                        snprintf(resp.error_msg, sizeof(resp.error_msg),
-                                "File not found: %.239s", req.path);
-
-                        int resp_fd = open_fifo_write(req.resp_fifo);
-                        if (resp_fd != -1) {
-                            write_exact(resp_fd, &resp, sizeof(resp));
-                            close(resp_fd);
-                        }
-                        break;
+                            response_msg_t resp = { .type = RESP_ERROR, .error_code = ENOENT, .error_msg = "File not found" };
+                            send_response(req.resp_fifo, resp);
+                            break;
                     }
 
                     off_t size = file_size(req.path);
                     if (size == -1) {
-                        response_msg_t resp;
-                        resp.type = RESP_ERROR;
-                        resp.error_code = errno;
-                        snprintf(resp.error_msg, sizeof(resp.error_msg),
-                                "Cannot get file size: %s", strerror(errno));
-
-                        int resp_fd = open_fifo_write(req.resp_fifo);
-                        if (resp_fd != -1) {
-                            write_exact(resp_fd, &resp, sizeof(resp));
-                            close(resp_fd);
-                        }
+                        response_msg_t resp = { .type = RESP_ERROR, .error_code = errno };
+                        snprintf(resp.error_msg, sizeof(resp.error_msg), "%s", strerror(errno));
+                        send_response(req.resp_fifo, resp);
                         break;
                     }
 
@@ -557,9 +510,7 @@ int server_run(server_ctx_t* ctx) {
                 }
 
                 case REQ_STATS: {
-                    response_msg_t resp;
-                    resp.type = RESP_STATS;
-                    resp.error_code = 0;
+                    response_msg_t resp = { .type = RESP_STATS, .error_code = 0 };
 
                     pthread_mutex_lock(&ctx->stats_mtx);
                     pthread_mutex_lock(&ctx->cache.mtx);
@@ -574,11 +525,7 @@ int server_run(server_ctx_t* ctx) {
                             ctx->stats.avg_processing_time * 1000);
                     pthread_mutex_unlock(&ctx->stats_mtx);
 
-                    int resp_fd = open_fifo_write(req.resp_fifo);
-                    if (resp_fd != -1) {
-                        write_exact(resp_fd, &resp, sizeof(resp));
-                        close(resp_fd);
-                    }
+                    send_response(req.resp_fifo, resp);
                     break;
                 }
 

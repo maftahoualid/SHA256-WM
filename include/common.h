@@ -45,6 +45,7 @@ int ensure_fifo(const char* path, mode_t mode);
 // Wrapper per open in lettura/scrittura
 int open_fifo_read(const char* path);
 int open_fifo_write(const char* path);
+void send_response(const char* fifo, response_msg_t resp);
 
 // Wrapper per read/write che gestiscono interruzioni e scritture parziali
 int read_exact(int fd, void* buf, size_t n);
