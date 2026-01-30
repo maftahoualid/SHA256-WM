@@ -1,0 +1,13 @@
+sudo apt install -y build-essential
+sudo apt install -y cmake
+sudo apt install -y libssl-dev
+
+
+open_fifo_write
+write_exact
+open_fifo_read
+read_exact
+get_time_diff
+send_terminate_request
+ensure_fifo
+send_stats_request
