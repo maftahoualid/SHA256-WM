@@ -1,1 +1,0 @@
-/usr/bin/cc -Wall -Wextra -pthread -D_POSIX_C_SOURCE=200809L -O2 -DNDEBUG CMakeFiles/server.dir/src/server.c.o CMakeFiles/server.dir/src/server_utils.c.o CMakeFiles/server.dir/src/common.c.o -o /home/wally/Documenti/GitHub/SHA256-WM/bin/server  /usr/lib/x86_64-linux-gnu/libssl.so /usr/lib/x86_64-linux-gnu/libcrypto.so

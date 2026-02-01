@@ -15,13 +15,13 @@ int send_hash_request(const char* filepath) {
 
     request_msg_t req = { .type = REQ_HASH_FILE, .client_pid = getpid() };
     strncpy(req.path, filepath, sizeof(req.path) - 1);
-    strncpy(req.resp_fifo, resp_fifo, sizeof(req.resp_fifo) - 1);
+    snprintf(req.resp_fifo, sizeof(req.resp_fifo), "%s", resp_fifo);
 
     struct timespec start_time, end_time;
     clock_gettime(CLOCK_MONOTONIC, &start_time);
 
     if (send_request(REQUEST_FIFO_PATH, req) == -1) {
-        fprintf(stderr, "Error: Cannot connect to server. Is the server running?\n");
+        fprintf(stderr, "Error: Cannot connect to server! Is the server running?\n");
         unlink(resp_fifo);
         return -1;
     }
@@ -85,7 +85,7 @@ int send_terminate_request(void) {
     if (ensure_fifo(resp_fifo, 0666) == -1) { return -1; }
     
     request_msg_t req = { .type = REQ_TERMINATE, .client_pid = getpid() };
-    strncpy(req.resp_fifo, resp_fifo, sizeof(req.resp_fifo) - 1);
+    snprintf(req.resp_fifo, sizeof(req.resp_fifo), "%s", resp_fifo);
     
     if (send_request(REQUEST_FIFO_PATH, req) == -1) {
         fprintf(stderr, "Error: Cannot connect to server\n");
@@ -105,7 +105,7 @@ int send_stats_request(void) {
     if (ensure_fifo(resp_fifo, 0666) == -1) { return -1; }
     
     request_msg_t req = { .type = REQ_STATS, .client_pid = getpid() };
-    strncpy(req.resp_fifo, resp_fifo, sizeof(req.resp_fifo) - 1);
+    snprintf(req.resp_fifo, sizeof(req.resp_fifo), "%s", resp_fifo);
     
     if (send_request(REQUEST_FIFO_PATH, req) == -1) {
         fprintf(stderr, "Error: Cannot connect to server. Is the server running?\n");

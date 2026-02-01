@@ -51,6 +51,12 @@ add_custom_target(clean_all
     COMMAND bash -c "cd ${CMAKE_SOURCE_DIR} && rm -f final.txt test.txt && rm -f /tmp/hash_server_*"
     COMMENT "Pulisce tutti i file generati"
 )
+add_custom_target(test
+        COMMAND ${CMAKE_COMMAND} -E echo "=== Esecuzione test ==="
+        COMMAND bash -c "cd ${CMAKE_SOURCE_DIR} && ./test.sh"
+        DEPENDS server client
+        COMMENT "Testa il sistema"
+)
 install(TARGETS server client
     RUNTIME DESTINATION bin
     COMPONENT binaries
