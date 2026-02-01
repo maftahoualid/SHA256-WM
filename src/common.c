@@ -1,58 +1,59 @@
 #include "common.h"
-#include <stdio.h>      // printf, perror
-#include <stdlib.h>     // exit, NULL
-#include <string.h>     // strerror
-#include <unistd.h>     // read, write, close, unlink, read
-#include <fcntl.h>      // open, O_RDONLY, O_WRONLY
-#include <errno.h>      // errno, EEXIST, EINTR
-#include <sys/stat.h>   // stat, mkfifo, S_ISFIFO
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <sys/stat.h>
 
 int ensure_fifo(const char* path, mode_t mode) {
+    if (mkfifo(path, mode) == 0) return 0;
+    if (errno != EEXIST) { perror("mkfifo"); return -1; }
     struct stat st;
-    if (stat(path, &st) == 0) {
-        if (S_ISFIFO(st.st_mode)) {
-            return 0;
-        } else {
-            // Se esiste ma non è una FIFO, prova a rimuoverlo
-            unlink(path);
-        }
-    }
-
-    if (mkfifo(path, mode) == -1) {
-        if (errno == EEXIST) {
-            return 0;
-        }
-        perror("mkfifo");
-        return -1;
-    }
-    return 0;
+    if (stat(path, &st) == 0 && S_ISFIFO(st.st_mode)) { return 0; }
+    fprintf(stderr, "Errore: '%s' esiste e non è una FIFO.\n", path);
+    return -1;
 }
 
 int open_fifo_read(const char* path) {
     int fd = open(path, O_RDONLY);
-    if (fd == -1) {
-        perror("open fifo read");
-    }
+    if (fd == -1) { perror("open fifo read"); }
     return fd;
 }
 
 int open_fifo_write(const char* path) {
     int fd = open(path, O_WRONLY);
-    if (fd == -1) {
-        perror("open fifo write");
-    }
+    if (fd == -1) { perror("open fifo write"); }
     return fd;
 }
 
 int send_response(const char* fifo, response_msg_t resp) {
     int fd = open_fifo_write(fifo);
-    if (fd != -1) {
-        if (write_exact(fd, &resp, sizeof(resp)) == -1) {
-            printf("Warning: Failed to send response to %s\n", fifo);
-        }
-        close(fd);
-    }
+    if (fd == -1) return -1;
+    if (write_exact(fd, &resp, sizeof(resp)) == -1) { printf("Warning: Failed to send response to %s\n", fifo); }
+    close(fd);
     return fd;
+}
+
+int send_request(const char* server_fifo, request_msg_t req) {
+    int fd = open_fifo_write(server_fifo);
+    if (fd == -1) return -1;
+    if (write_exact(fd, &req, sizeof(req)) == -1) { printf("Warning: Failed to send request to %s\n", server_fifo); }
+    close(fd);
+    return fd;
+}
+int read_response(const char* fifo, response_msg_t* resp) {
+    int fd = open_fifo_read(fifo);
+    if (fd == -1) return -1;
+    
+    if (read_exact(fd, resp, sizeof(*resp)) == -1) {
+        close(fd);
+        return -1;
+    }
+    
+    close(fd);
+    return 0;
 }
 
 int read_exact(int fd, void* buf, size_t n) {

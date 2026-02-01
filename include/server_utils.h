@@ -2,11 +2,7 @@
 #define SERVER_UTILS_H
 
 #include "server_structs.h"
-
-// Context Globale
 extern server_ctx_t* g_server_ctx;
-
-// --- UTILITÀ FILE SYSTEM ---
 
 /**
  * Restituisce la dimensione del file in byte.
@@ -25,16 +21,12 @@ int get_file_mtime(const char* path, time_t* sec, long* nsec);
  */
 bool file_exists(const char* path);
 
-// --- HASHING ---
-
 /**
  * Calcola l'hash SHA256 del file specificato.
  * Scrive il risultato in esadecimale (64 char + null terminator) in hash_hex.
  * Ritorna 0 su successo, -1 su errore.
  */
 int compute_sha256(const char* filepath, char* hash_hex);
-
-// --- GESTIONE JOB QUEUE ---
 
 /**
  * Inizializza la coda dei job.
@@ -63,8 +55,6 @@ void jq_push(job_queue_t* q, const char* path, const char* resp_fifo, pid_t clie
  * Ritorna 0 su successo, -1 se la coda è chiusa/terminata.
  */
 int jq_pop(job_queue_t* q, job_t* out);
-
-// --- GESTIONE CACHE ---
 
 /**
  * Funzione di hash DJB2 per le stringhe (per indicizzare la cache).
@@ -98,8 +88,6 @@ bool cache_lookup(cache_t* c, const char* path, off_t size, time_t mtime_sec, lo
  */
 void cache_store(cache_t* c, const char* path, off_t size, time_t mtime_sec, long mtime_nsec, const char* hash);
 
-// --- SERVER LIFECYCLE & WORKERS ---
-
 /**
  * Gestore dei segnali (SIGINT, SIGTERM).
  */
@@ -130,4 +118,4 @@ int server_run(server_ctx_t* ctx);
  */
 void print_stats(const stats_t* stats);
 
-#endif // SERVER_UTILS_H
+#endif

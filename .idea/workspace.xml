@@ -4,7 +4,20 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="6214eea9-e1f9-452e-9bcf-7c3c01f4abe0" name="Changes" comment="" />
+    <list default="true" id="6214eea9-e1f9-452e-9bcf-7c3c01f4abe0" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/bin/client" beforeDir="false" afterPath="$PROJECT_DIR$/bin/client" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/bin/server" beforeDir="false" afterPath="$PROJECT_DIR$/bin/server" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/CMakeFiles/client.dir/src/client.c.o" beforeDir="false" afterPath="$PROJECT_DIR$/build/CMakeFiles/client.dir/src/client.c.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/CMakeFiles/client.dir/src/common.c.o" beforeDir="false" afterPath="$PROJECT_DIR$/build/CMakeFiles/client.dir/src/common.c.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/CMakeFiles/server.dir/src/common.c.o" beforeDir="false" afterPath="$PROJECT_DIR$/build/CMakeFiles/server.dir/src/common.c.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/CMakeFiles/server.dir/src/server_utils.c.o" beforeDir="false" afterPath="$PROJECT_DIR$/build/CMakeFiles/server.dir/src/server_utils.c.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/include/common.h" beforeDir="false" afterPath="$PROJECT_DIR$/include/common.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/include/server_structs.h" beforeDir="false" afterPath="$PROJECT_DIR$/include/server_structs.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/client.c" beforeDir="false" afterPath="$PROJECT_DIR$/src/client.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/common.c" beforeDir="false" afterPath="$PROJECT_DIR$/src/common.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/server_utils.c" beforeDir="false" afterPath="$PROJECT_DIR$/src/server_utils.c" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -26,30 +39,30 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.MCP Project settings loaded": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "SHELLCHECK.PATH": "/home/wally/.local/share/JetBrains/IntelliJIdea2025.3/Shell Script/shellcheck",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "main",
-    "junie.onboarding.icon.badge.shown": "true",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "/home/wally/Documenti/GitHub/SHA256-WM",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "preferences.editor",
-    "to.speed.mode.migration.done": "true",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;SHELLCHECK.PATH&quot;: &quot;/home/wally/.local/share/JetBrains/IntelliJIdea2025.3/Shell Script/shellcheck&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/wally/Documenti/GitHub/SHA256-WM&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.editor&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -69,6 +82,9 @@
       <workItem from="1769728123314" duration="5260000" />
       <workItem from="1769777958067" duration="507000" />
       <workItem from="1769778529873" duration="8264000" />
+      <workItem from="1769872349632" duration="1949000" />
+      <workItem from="1769874331281" duration="620000" />
+      <workItem from="1769875478874" duration="5682000" />
     </task>
     <servers />
   </component>

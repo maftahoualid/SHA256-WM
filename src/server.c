@@ -1,10 +1,10 @@
 #include "server_utils.h"
 #include <stdio.h>
-#include <stdlib.h>     // atoi, abort
-#include <string.h>     // strcmp
-#include <unistd.h>     // unlink
-#include <signal.h>     // signal, SIGINT, SIGTERM, SIGPIPE, SIG_IGN
-#include <getopt.h>     // getopt_long
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <signal.h>
+#include <getopt.h>
 
 server_ctx_t* g_server_ctx = NULL;
 
@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
     signal(SIGTERM, signal_handler);
     signal(SIGPIPE, SIG_IGN);
 
-    int num_workers = 4;
+    int num_workers = DEFAULT_WORKERS;
     int order = ORDER_ASC;
     int opt;
 

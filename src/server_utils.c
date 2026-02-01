@@ -1,13 +1,14 @@
 #include "server_utils.h"
-#include <stdio.h>      // printf, snprintf, fopen, fread, fclose
-#include <stdlib.h>     // malloc, free, calloc
-#include <string.h>     // strncpy, strcmp, strerror, memset, strcpy
-#include <unistd.h>     // access, close, write, read
-#include <errno.h>      // errno, ENOENT
-#include <sys/stat.h>   // stat
-#include <pthread.h>    // pthread_*
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <errno.h>
+#include <sys/stat.h>
+#include <pthread.h>
 #define OPENSSL_SUPPRESS_DEPRECATED
 #include <openssl/sha.h>
+
 
 off_t file_size(const char* path) {
     struct stat st;
@@ -42,14 +43,10 @@ void print_stats(const stats_t* stats) {
     printf("Cache hits: %lu\n", stats->cache_hits);
     printf("Cache misses: %lu\n", stats->cache_misses);
     printf("Files processed: %lu\n", stats->files_processed);
-    printf("Cache hit ratio: %.2f%%\n",
-           stats->total_requests > 0 ?
-           (100.0 * stats->cache_hits / stats->total_requests) : 0.0);
+    printf("Cache hit ratio: %.2f%%\n", stats->total_requests > 0 ? (100.0 * stats->cache_hits / stats->total_requests) : 0.0);
     printf("Average processing time: %.3f ms\n", stats->avg_processing_time * 1000);
     printf("========================\n");
 }
-
-// --- CALCOLO SHA256 ---
 int compute_sha256(const char* filepath, char* hash_hex) {
     FILE* file = fopen(filepath, "rb");
     if (!file) {
@@ -77,8 +74,6 @@ int compute_sha256(const char* filepath, char* hash_hex) {
 
     return 0;
 }
-
-// --- IMPLEMENTAZIONE JOB QUEUE ---
 void jq_init(job_queue_t* q, int order) {
     q->head = NULL;
     q->closed = false;
@@ -134,22 +129,15 @@ void jq_push(job_queue_t* q, const char* path, const char* resp_fifo, pid_t clie
         return;
     }
 
-    // Inserimento ordinato in base alla dimensione
-    if (!q->head ||
-        (q->order == ORDER_ASC && size < q->head->size) ||
-        (q->order == ORDER_DESC && size > q->head->size)) {
-        new_job->next = q->head;
-        q->head = new_job;
-    } else {
-        job_t* current = q->head;
-        while (current->next &&
-               ((q->order == ORDER_ASC && size >= current->next->size) ||
-                (q->order == ORDER_DESC && size <= current->next->size))) {
-            current = current->next;
-        }
-        new_job->next = current->next;
-        current->next = new_job;
+    job_t** ptr = &q->head;
+
+    while (*ptr) {
+        bool continue_traversal = (q->order == ORDER_ASC) ? (size >= (*ptr)->size) : (size <= (*ptr)->size);
+        if (!continue_traversal) break;
+        ptr = &(*ptr)->next;
     }
+    new_job->next = *ptr;
+    *ptr = new_job;
 
     q->count++;
     pthread_cond_signal(&q->cv);
@@ -178,8 +166,6 @@ int jq_pop(job_queue_t* q, job_t* out) {
     pthread_mutex_unlock(&q->mtx);
     return 0;
 }
-
-// --- IMPLEMENTAZIONE CACHE ---
 unsigned long djb2_hash(const char* s) {
     unsigned long hash = 5381;
     int c;
@@ -260,8 +246,6 @@ bool cache_lookup(cache_t* c, const char* path, off_t size, time_t mtime_sec, lo
     }
 
     pthread_mutex_lock(&entry->mtx);
-
-    // Check se valido: hash pronto, stessa size, stesso mtime
     if (entry->ready && entry->sz == size &&
         entry->mtime_sec == mtime_sec && entry->mtime_nsec == mtime_nsec) {
         strcpy(hash_out, entry->hash);
@@ -272,16 +256,12 @@ bool cache_lookup(cache_t* c, const char* path, off_t size, time_t mtime_sec, lo
         pthread_mutex_unlock(&c->mtx);
         return true;
     }
-
-    // Se qualcun altro sta calcolando, aspetta
     if (entry->computing) {
         entry->waiters++;
         while (entry->computing) {
             pthread_cond_wait(&entry->cv, &entry->mtx);
         }
         entry->waiters--;
-
-        // Ritorna a controllare dopo l'attesa
         if (entry->ready && entry->sz == size &&
             entry->mtime_sec == mtime_sec && entry->mtime_nsec == mtime_nsec) {
             strcpy(hash_out, entry->hash);
@@ -293,8 +273,6 @@ bool cache_lookup(cache_t* c, const char* path, off_t size, time_t mtime_sec, lo
             return true;
         }
     }
-
-    // Se siamo noi a dover calcolare
     if (!entry->computing) {
         entry->computing = true;
         pthread_mutex_unlock(&entry->mtx);
@@ -331,8 +309,6 @@ void cache_store(cache_t* c, const char* path, off_t size, time_t mtime_sec, lon
 
     pthread_mutex_unlock(&entry->mtx);
 }
-
-// --- LOGICA SERVER & WORKER ---
 void signal_handler(int sig) {
     if (g_server_ctx) {
         printf("\nReceived signal %d, shutting down server\n", sig);
@@ -348,14 +324,9 @@ void* worker_thread(void* arg) {
     printf("Worker thread started\n");
 
     while (ctx->running) {
-        if (jq_pop(&ctx->job_queue, &job) == -1) {
-            break;
-        }
-
+        if (jq_pop(&ctx->job_queue, &job) == -1) { break; }
         struct timespec start_time, end_time;
         clock_gettime(CLOCK_MONOTONIC, &start_time);
-
-        // Verifica esistenza file al momento dell'esecuzione
         off_t size = file_size(job.path);
         time_t mtime_sec;
         long mtime_nsec;
@@ -387,7 +358,7 @@ void* worker_thread(void* arg) {
 
         response_msg_t resp = { .type = RESP_HASH, .error_code = 0, .error_msg = "" };
         strcpy(resp.hash, hash_result);
-        resp_fd = send_response(job.resp_fifo, resp);
+        int resp_fd = send_response(job.resp_fifo, resp);
         if (resp_fd == -1) printf("Warning: Cannot open response FIFO for client\n");
 
         clock_gettime(CLOCK_MONOTONIC, &end_time);
@@ -401,7 +372,6 @@ void* worker_thread(void* arg) {
             ctx->stats.cache_misses++;
         }
 
-        // Media mobile esponenziale o semplice media cumulativa
         double total_time = ctx->stats.avg_processing_time * (ctx->stats.total_requests - 1);
         ctx->stats.avg_processing_time = (total_time + processing_time) / ctx->stats.total_requests;
 
@@ -457,14 +427,7 @@ void server_destroy(server_ctx_t* ctx) {
 int server_run(server_ctx_t* ctx) {
     int req_fd;
     request_msg_t req;
-
-    printf("Server started with %d worker threads\n", ctx->num_workers);
-    printf("Job queue order: %s\n", ctx->job_queue.order == ORDER_ASC ? "ascending" : "descending");
-
-    if (ensure_fifo(REQUEST_FIFO_PATH, 0666) == -1) {
-        return -1;
-    }
-
+    if (ensure_fifo(REQUEST_FIFO_PATH, 0666) == -1) { return -1; }
     while (ctx->running) {
         req_fd = open_fifo_read(REQUEST_FIFO_PATH);
         if (req_fd == -1) {
@@ -474,20 +437,7 @@ int server_run(server_ctx_t* ctx) {
         }
 
         while (ctx->running) {
-            ssize_t bytes_read = read(req_fd, &req, sizeof(req));
-            if (bytes_read == 0) {
-                break; // EOF
-            }
-            if (bytes_read == -1) {
-                if (errno == EINTR) continue;
-                perror("read request");
-                break;
-            }
-            if (bytes_read != sizeof(req)) {
-                fprintf(stderr, "Partial read of request\n");
-                continue;
-            }
-
+            if (read_exact(req_fd, &req, sizeof(req)) == -1) { break; }
             switch (req.type) {
                 case REQ_HASH_FILE: {
                     if (!file_exists(req.path)) {
@@ -495,7 +445,6 @@ int server_run(server_ctx_t* ctx) {
                             send_response(req.resp_fifo, resp);
                             break;
                     }
-
                     off_t size = file_size(req.path);
                     if (size == -1) {
                         response_msg_t resp = { .type = RESP_ERROR, .error_code = errno };
@@ -503,12 +452,10 @@ int server_run(server_ctx_t* ctx) {
                         send_response(req.resp_fifo, resp);
                         break;
                     }
-
                     printf("Received hash request for: %s (size: %lld bytes)\n", req.path, (long long)size);
                     jq_push(&ctx->job_queue, req.path, req.resp_fifo, req.client_pid, size);
                     break;
                 }
-
                 case REQ_STATS: {
                     response_msg_t resp = { .type = RESP_STATS, .error_code = 0 };
 
@@ -528,12 +475,10 @@ int server_run(server_ctx_t* ctx) {
                     send_response(req.resp_fifo, resp);
                     break;
                 }
-
                 case REQ_TERMINATE:
                     printf("Received termination request\n");
                     ctx->running = false;
                     break;
-
                 default:
                     fprintf(stderr, "Unknown request type: %d\n", req.type);
                     break;
