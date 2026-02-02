@@ -185,8 +185,8 @@ CMakeFiles/docs.dir/clean:
 # Target rules for target CMakeFiles/run_tests.dir
 
 # All Build rule for target.
-CMakeFiles/run_tests.dir/all: CMakeFiles/client.dir/all
 CMakeFiles/run_tests.dir/all: CMakeFiles/server.dir/all
+CMakeFiles/run_tests.dir/all: CMakeFiles/client.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/run_tests.dir/build.make CMakeFiles/run_tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/run_tests.dir/build.make CMakeFiles/run_tests.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/wally/Documenti/GitHub/SHA256-WM/build/CMakeFiles --progress-num=6 "Built target run_tests"
@@ -204,8 +204,8 @@ run_tests: CMakeFiles/run_tests.dir/rule
 .PHONY : run_tests
 
 # codegen rule for target.
-CMakeFiles/run_tests.dir/codegen: CMakeFiles/client.dir/all
 CMakeFiles/run_tests.dir/codegen: CMakeFiles/server.dir/all
+CMakeFiles/run_tests.dir/codegen: CMakeFiles/client.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/run_tests.dir/build.make CMakeFiles/run_tests.dir/codegen
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/wally/Documenti/GitHub/SHA256-WM/build/CMakeFiles --progress-num=6 "Finished codegen for target run_tests"
 .PHONY : CMakeFiles/run_tests.dir/codegen
@@ -251,8 +251,8 @@ CMakeFiles/clean_all.dir/clean:
 # Target rules for target CMakeFiles/test.dir
 
 # All Build rule for target.
-CMakeFiles/test.dir/all: CMakeFiles/client.dir/all
 CMakeFiles/test.dir/all: CMakeFiles/server.dir/all
+CMakeFiles/test.dir/all: CMakeFiles/client.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test.dir/build.make CMakeFiles/test.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test.dir/build.make CMakeFiles/test.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/wally/Documenti/GitHub/SHA256-WM/build/CMakeFiles --progress-num=11 "Built target test"
@@ -270,8 +270,8 @@ test: CMakeFiles/test.dir/rule
 .PHONY : test
 
 # codegen rule for target.
-CMakeFiles/test.dir/codegen: CMakeFiles/client.dir/all
 CMakeFiles/test.dir/codegen: CMakeFiles/server.dir/all
+CMakeFiles/test.dir/codegen: CMakeFiles/client.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test.dir/build.make CMakeFiles/test.dir/codegen
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/wally/Documenti/GitHub/SHA256-WM/build/CMakeFiles --progress-num=11 "Finished codegen for target test"
 .PHONY : CMakeFiles/test.dir/codegen

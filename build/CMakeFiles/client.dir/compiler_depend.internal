@@ -9,6 +9,7 @@ CMakeFiles/client.dir/src/client.c.o
  /usr/include/errno.h
  /usr/include/features-time64.h
  /usr/include/features.h
+ /usr/include/getopt.h
  /usr/include/linux/errno.h
  /usr/include/stdc-predef.h
  /usr/include/stdio.h
@@ -26,6 +27,7 @@ CMakeFiles/client.dir/src/client.c.o
  /usr/include/x86_64-linux-gnu/bits/floatn-common.h
  /usr/include/x86_64-linux-gnu/bits/floatn.h
  /usr/include/x86_64-linux-gnu/bits/getopt_core.h
+ /usr/include/x86_64-linux-gnu/bits/getopt_ext.h
  /usr/include/x86_64-linux-gnu/bits/getopt_posix.h
  /usr/include/x86_64-linux-gnu/bits/libc-header-start.h
  /usr/include/x86_64-linux-gnu/bits/long-double.h

@@ -4,7 +4,7 @@ cd "$(dirname "$0")"
 
 # Cleanup precedente
 pkill -f "./bin/server" 2>/dev/null || true
-pkill -f "./bin/client" 2>/dev/null || true
+pkill -f "./bin/client -p" 2>/dev/null || true
 sleep 1
 
 # Creo file di test con dimensioni diverse per testare lo scheduling
@@ -29,37 +29,37 @@ echo ""
 
 echo "=== 2. TEST FIFO COMMUNICATION (Server-Client) ==="
 echo "Invio richiesta hash per file medio"
-./bin/client medium_file.txt
+./bin/client -p medium_file.txt
 echo "✓ Comunicazione FIFO funzionante"
 echo ""
 
 echo "=== 3. TEST SCHEDULING PER DIMENSIONE FILE (desc) ==="
 echo "Invio richieste sequenziali per dimostrare ordinamento per dimensione"
 echo "- File grande (5KB):"
-./bin/client large_file.txt
+./bin/client -p large_file.txt
 echo "- File piccolo (14 bytes):"  
-./bin/client small_file.txt
+./bin/client -p small_file.txt
 echo "- File medio (101 bytes):"
-./bin/client medium_file.txt
+./bin/client -p medium_file.txt
 echo "✓ Scheduling per dimensione implementato (ordine desc)"
 echo ""
 
 echo "=== 4. TEST CACHE PERCORSO-HASH ==="
 echo "Primo accesso (cache miss):"
-./bin/client medium_file.txt
+./bin/client -p medium_file.txt
 echo ""
 echo "Secondo accesso (cache hit - più veloce):"
-./bin/client medium_file.txt
+./bin/client -p medium_file.txt
 echo "✓ Cache LRU funzionante - secondo accesso usa cache"
 echo ""
 
 echo "=== 5. TEST RICHIESTE CONCORRENTI STESSO FILE ==="
 echo "Invio 3 richieste simultanee per lo stesso file"
-./bin/client large_file.txt &
+./bin/client -p large_file.txt &
 PID1=$!
-./bin/client large_file.txt &
+./bin/client -p large_file.txt &
 PID2=$!
-./bin/client large_file.txt &
+./bin/client -p large_file.txt &
 PID3=$!
 wait $PID1 $PID2 $PID3
 echo "✓ Gestione richieste duplicate - una sola elaborazione effettiva"
@@ -67,11 +67,11 @@ echo ""
 
 echo "=== 6. TEST THREADING CONCORRENTE ==="
 echo "Invio richieste multiple simultanee per testare concorrenza"
-./bin/client small_file.txt &
+./bin/client -p small_file.txt &
 PID1=$!
-./bin/client medium_file.txt &
+./bin/client -p medium_file.txt &
 PID2=$!
-./bin/client large_file.txt &
+./bin/client -p large_file.txt &
 PID3=$!
 wait $PID1 $PID2 $PID3
 echo "Thread multipli processano richieste in parallelo"

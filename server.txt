@@ -1,0 +1,84 @@
+SERVER:
+1- riceve gli argomenti da riga di comando
+2- registra i gestori dei segnali 
+3- inizializza numero thread e ordinamento di default
+4- definisce gli argomenti accettabili da riga di comando
+5- cicla su tutti gli argomenti :
+   - se -w / --workers controlla che il valore sia tra 0 e MAX_WORKERS (8) e inizializza num_wokers con tale valore [altrimenti errore - termina]
+   - se -o / --order controlla che il valore sia "asc" o "desc" e inizializza order con tale valore [altrimenti errore - termina]
+   - se -h / --help stampa la guida all'uso del programma [ok - termina]
+   - se altro : stampa la guida all'uso del programma [errore - termina]
+6- alloca una struttura sul contesto del server e ne passa l'indirizzo a una variabile globale
+7- inizializza il server (passando l'indirizzo della struttura contesto, il num_workers e l'ordine) : 
+7.1 inizializza la coda dei lavori (passando la coda dei lavori contenuta nel contesto e l'ordine) : 
+   - inizializza una coda vuota con parametri coda_chiusa=false, order=l'ordine dato, numero elementi in coda=0, 
+   - inizializza mutex_coda e condition_variable della coda
+7.2 inizializza la hash table della cache (passando la struttura cache del contesto e il numero di elementi della tabella hash)
+   - alloca nbuckets elementi di dimensione cache_entry e ne passa l'indirizzo a buckets della struttura cache
+   - salva il numero elementi nel campo nbuckets e azzera le variabili hits e misses 
+   - inizializza il mutex globale della cache 
+7.3 inizializza la struttura stats del contesto
+   - azzera tutti i campi della struttura stats
+   - inizializza il mutex della struttura stats
+7.4 crea e attiva i num_workers threads 
+   - setta num_workers al numero dato e running a true
+   - cicla per num_workers volte : creando ogni volta un nuovo thread che esegue worker_thread 
+     con argomento il contesto e salvando il handle del thread nel array workers del contesto [altrimenti errore]
+7.5 ogni thread esegue worker_thread :
+   - ...............................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+   (da completare)
+8- crea una nuova fifo pubblica:
+   - se non esiste la crea
+   - se esiste già ed è una fifo la riutilizza
+   - se esiste ma non è una fifo o altro [errore]
+9- loop principale:
+   - prova a leggere dalla fifo (si blocca finchè non c'è qualcosa)
+   - se interrotto da un segnale si rimette a leggere
+   - se fallisce per altri motivi esce dal ciclo
+   - se c'è qualcosa da leggere: 
+      - tenta di leggere dalla fifo esattamente la dimensione del messaggio di richiesta
+      - se interrotto da un segnale riprova (negli altri casi fallisce ed esce dal ciclo)
+      - se legge tutto salva il messaggio in req 
+      
+      - controlla il tipo di req (REQ_HASH_FILE/REQ_STATS/REQ_TERMINATE)
+      - se REQ_HASH_FILE : 
+         - controllo esistenza file
+            - se non esiste manda subito [RESP_ERROR/-/descrizione errore/codice errore] 
+              in risposta sulla fifo privata del client indicata dal campo resp_fifo del messaggio di richiesta req )
+                 - apre la fifo in sola scrittura e tenta di scrivere esattamente la dimensione del messaggio di risposta (altrimenti fallisce) e la chiude
+         - controllo dimensione file (se fallisce [RESP_ERROR/-/descrizione errore/codice errore] al client ed esce dal ciclo)
+         - aggiunge la richiesta nella coda dei lavori (passando la coda del contesto, path, fifo di risposta, pid del client, dimensione file)
+            - alloca memoria per la struttura job e la inizializza con i valori di path, resp_fifo, client_pid, size, e mette next a null
+            - entra in sezione critica per la coda dei job (lock)
+               - se la coda è stata chiusa, libera la memoria appena allocata, rilascia il lock ed esce
+               - altrimenti a partire dalla testa della coda scorre la lista finchè non trova un punto di inserimento
+               - collega la struttura job appena creata nel punto di inserimento trovato e incrementa il count degli elementi della coda
+               - segnala con la condition_variable della coda un nuovo job a un worker in attesa ed esce dalla sezione critica rilasciando il lock
+         - ricomincia a leggere
+      - se REQ_STATS : 
+         - crea un messaggio [RESP_STATS/-/-/0]
+         - blocca mutex stats e poi mutex cache 
+         - aggiorna i campi della struttura stats del contesto con i valori attuali di cache hits e cache misses
+         - sblocca il mutex cache 
+         - aggiunge una stringa con [richieste totali, cache hits, cache misses, file processati, tempo medio processamento] al error_msg del messaggio
+   	 - invia il messaggio [RESP_STATS/-/stringa delle statistiche/0] ed esce 
+      - ricomincia a leggere
+      
+      - se il client si disconnette o la lettura fallisce la fifo di richiesta viene chiusa e riaperta alla nuova iterazione
+      
+      - se REQ_TERMINATE :
+         - mette il campo running del contesto a false
+   	 - esce dal ciclo interno ed esterno e chiude la fifo di richiesta
+10- chiusura del server :
+   - mette il campo running del contesto a false
+   - entra in sezione critica per la coda dei job (lock)
+   - mette il flag closed a true 
+   - segnala con la condition_variable della coda un nuovo job a tutti i worker in attesa 
+   - esce della sezione critica per la coda dei job (rilascia il lock)
+   - per ogni thread, se questo è attivo, ne richiede e attende la terminazione, poi lo segna come disattivo
+   - entra in sezione critica per la coda dei job (lock)
+   - iniziando dalla testa della coda, scorre tutta la coda liberando la memoria occupata dai nodi
+   - azzera il puntatore alla testa e il contatore nodi 
+   - sblocca il mutex della coda 
+   - distrugge il mutex della coda (e la condition variable della coda), della cache e delle stats
+   - rimuove la fifo dal file system (cancella il file) ed esce

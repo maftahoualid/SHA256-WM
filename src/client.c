@@ -6,6 +6,7 @@
 #include <time.h>           // Inclusione funzioni tempo (clock_gettime, struct timespec)
 #include <sys/select.h>     // Inclusione per select() (gestione timeout I/O)
 #include <errno.h>          // Inclusione gestione codici errore
+#include <getopt.h>
 
 int send_hash_request(const char* filepath) { // Funzione per inviare richiesta calcolo hash
     char resp_fifo[MAX_PATH_LEN]; // Buffer per il percorso della FIFO di risposta privata
@@ -49,6 +50,7 @@ int send_hash_request(const char* filepath) { // Funzione per inviare richiesta 
     int select_result = select(resp_fd + 1, &readfds, NULL, NULL, &timeout);
     if (select_result <= 0) { // Se 0 (timeout) o < 0 (errore)
         if (select_result == 0) { // Caso Timeout
+            printf("Timeout waiting for server response\n");
             fprintf(stderr, "Timeout waiting for server response\n"); // Log timeout
         } else { // Caso Errore select
             perror("select"); // Log errore sistema
@@ -174,36 +176,50 @@ int send_stats_request(void) { // Funzione per richiedere statistiche
     }
 }
 
-int main(int argc, char* argv[]) { // Funzione principale
-    if (argc < 2) { // Controllo argomenti minimi (almeno 1 opzione o file)
-        print_usage(argv[0]); // Stampa help
-        return 1; // Exit error
-    }
-    
-    // Itera sugli argomenti (gestione manuale invece di getopt per semplicità mista a path posizionali)
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) { // Flag Help
-            print_usage(argv[0]); // Stampa
-            return 0; // Exit success
-        } else if (strcmp(argv[i], "-s") == 0 || strcmp(argv[i], "--stats") == 0) { // Flag Stats
-            return send_stats_request(); // Invia richiesta stats e esce con il suo codice ritorno
-        } else if (strcmp(argv[i], "-t") == 0 || strcmp(argv[i], "--terminate") == 0) { // Flag Terminate
-            return send_terminate_request(); // Invia richiesta term e esce
-        } else if (argv[i][0] == '-') { // Se inizia con - ma non è riconosciuto
-            fprintf(stderr, "Unknown option: %s\n", argv[i]); // Errore
-            print_usage(argv[0]); // Help
-            return 1; // Exit error
-        } else { // Altrimenti è un percorso file
-            char* filepath = argv[i]; // Punta all'argomento
-            char abs_path[4096]; // Buffer per path assoluto
-            // Converte path relativo in assoluto (necessario perché server ha CWD diversa)
-            if (realpath(filepath, abs_path) == NULL) { perror("realpath"); return 1; }
-            filepath = abs_path; // Aggiorna puntatore
-            // Check lunghezza massima path supportata dal protocollo
-            if (strlen(abs_path) >= MAX_PATH_LEN) { fprintf(stderr, "Errore: Il percorso è troppo lungo"); return 1; }
-            // Invia richiesta hash per il file
-            if (send_hash_request(filepath) == -1) { fprintf(stderr, "Errore: Invio Richiesta Hash fallito"); return 1; }
+int main(int argc, char* argv[]) {
+    int opt;
+    int option_index = 0;
+
+    // Opzioni supportate
+    static struct option long_options[] = {
+        {"help",      no_argument,       0, 'h'},
+        {"path",      required_argument, 0, 'p'}, // Richiede argomento (il file)
+        {"stats",     no_argument,       0, 's'},
+        {"terminate", no_argument,       0, 't'},
+        {0,           0,                 0,  0 }
+    };
+
+    // Check base argomenti (opzionale, ma utile se vuoi evitare esecuzione vuota)
+    if (argc < 2) { print_usage(argv[0]); return 1; }
+
+    // Ciclo di parsing: "h p: s t" (i due punti dopo p indicano che serve un parametro)
+    while ((opt = getopt_long(argc, argv, "hp:st", long_options, &option_index)) != -1) {
+        switch (opt) {
+            case 'p': { 
+                char abs_path[4096];
+                char* filepath = optarg; 
+                // 1. Converte in path assoluto
+                if (realpath(filepath, abs_path) == NULL) { perror("Errore realpath"); return 1; }
+                // 2. Controllo lunghezza
+                if (strlen(abs_path) >= MAX_PATH_LEN) { fprintf(stderr, "Errore: Il percorso è troppo lungo\n"); return 1; }
+                // 3. Invio richiesta Hash
+                if (send_hash_request(abs_path) == -1) { fprintf(stderr, "Errore: Invio Richiesta Hash fallito per %s\n", abs_path); return 1; }
+                break; // Esegue e torna a controllare se ci sono altri flag -p
+            }
+            case 'h': print_usage(argv[0]); return 0;
+            case 's': return send_stats_request();
+            case 't': return send_terminate_request();
+            case '?': print_usage(argv[0]); return 1;
+            default:
+                abort();
         }
     }
-    return 0; // Uscita normale se loop finito
+
+    if (optind < argc) {
+        fprintf(stderr, "Errore: Trovati argomenti non validi:\n");
+        while (optind < argc) { fprintf(stderr, " -> %s\n", argv[optind++]); }
+        return 1; 
+    }
+
+    return 0;
 }
