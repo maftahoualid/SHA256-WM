@@ -86,4 +86,4 @@ echo "=== 8. TERMINAZIONE GRACEFUL ==="
 wait $SERVER_PID 2>/dev/null || true
 
 # Cleanup
-rm -f small_file.txt medium_file.txt large_file.txt
+# rm -f small_file.txt medium_file.txt large_file.txt

@@ -24,8 +24,12 @@ int apri_fifo_lettura(const char* path) {
 }
 
 int apri_fifo_scrittura(const char* path) {
-    int fd = open(path, O_WRONLY);
-    if (fd == -1) { perror("open fifo write"); }
+    int fd = open(path, O_WRONLY | O_NONBLOCK);
+    if (fd == -1) {
+        if (errno != ENXIO) {
+            perror("open fifo write"); 
+        }
+    }
     return fd;
 }
 
