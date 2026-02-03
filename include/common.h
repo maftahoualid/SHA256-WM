@@ -6,8 +6,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#define REQUEST_FIFO_PATH "/tmp/sha256_req_fifo"
-#define CLIENT_FIFO_PREFIX "/tmp/sha256_resp_"
+#define REQUEST_FIFO_PATH "/tmp/fifo_richiesta_"
+#define CLIENT_FIFO_PREFIX "/tmp/fifo_risposta"
 #define MAX_PATH_LEN 1024
 #define HASH_HEX_LEN 64
 
@@ -19,46 +19,46 @@
 #define RESP_STATS    5
 
 typedef struct {
-    int type;
+    int tipo;
     char path[MAX_PATH_LEN];
-    char resp_fifo[MAX_PATH_LEN];
-    pid_t client_pid;
-} request_msg_t;
+    char fifo_risposta[MAX_PATH_LEN];
+    pid_t pid_client;
+} messaggio_richiesta_t;
 
 typedef struct {
-    unsigned long total_requests;
+    unsigned long richieste_totali;
     unsigned long cache_hits;
     unsigned long cache_misses;
-    unsigned long files_processed;
-    double avg_processing_time;
-} stats_t;
+    unsigned long file_processati;
+    double media_tempo_processamento;
+} statistiche_t;
 
 typedef struct {
-    int type;
+    int tipo;
     char hash[HASH_HEX_LEN + 1];
-    char error_msg[256];
-    int error_code;
-    stats_t stats;
-} response_msg_t;
+    char messaggio[256];
+    int codice;
+    statistiche_t statistiche;
+} messaggio_risposta_t;
 
-int ensure_fifo(const char* path, mode_t mode);
+int crea_fifo(const char* path, mode_t permessi);
 
-int open_fifo_read(const char* path);
+int apri_fifo_lettura(const char* path);
 
-int open_fifo_write(const char* path);
+int apri_fifo_scrittura(const char* path);
 
-int send_response(const char* fifo, response_msg_t resp);
+int invia_risposta(const char* fifo, messaggio_risposta_t risposta);
 
-int send_request(const char* server_fifo, request_msg_t req);
+int invia_richiesta(const char* server_fifo, messaggio_richiesta_t richiesta);
 
-int read_response(const char* fifo, response_msg_t* resp);
+int leggi_risposta(const char* fifo, messaggio_risposta_t* risposta);
 
-int read_exact(int fd, void* buf, size_t n);
+int leggi_da_fifo(int fd, void* buffer, size_t n);
 
-int write_exact(int fd, const void* buf, size_t n);
+int scrivi_su(int fd, const void* buffer, size_t n);
 
-double get_time_diff(struct timespec start, struct timespec end);
+double differenza(struct timespec inizio, struct timespec fine);
 
-void print_usage(const char* progname);
+void stampa_menu(const char* prog);
 
 #endif

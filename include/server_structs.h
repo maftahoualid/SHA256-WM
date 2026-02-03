@@ -13,41 +13,41 @@
 #define ORDER_ASC  0
 #define ORDER_DESC 1
 
-typedef struct job {
+typedef struct lavoro {
     char path[MAX_PATH_LEN];
-    char resp_fifo[MAX_PATH_LEN];
-    pid_t client_pid;
-    off_t size;
-    struct job* next;
-} job_t;
+    char fifo_risposta[MAX_PATH_LEN];
+    pid_t pid_client;
+    off_t dimensione;
+    struct lavoro* prossimo;
+} lavoro_t;
 
 typedef struct {
-    job_t* head;
-    pthread_mutex_t mtx;
-    pthread_cond_t cv;
-    bool closed;
-    int order;
-    int count;
-} job_queue_t;
+    lavoro_t* testa;
+    pthread_mutex_t mutex;
+    pthread_cond_t cond_var;
+    bool coda_chiusa;
+    int ordine;
+    int numero_elementi;
+} coda_t;
 
-typedef struct cache_entry {
+typedef struct elemento_cache {
     char path[MAX_PATH_LEN];
     char hash[HASH_HEX_LEN + 1];
-    bool ready;
-    bool computing;
-    int waiters;
-    off_t sz;
-    time_t mtime_sec;
-    long mtime_nsec;
-    pthread_mutex_t mtx;
-    pthread_cond_t cv;
-    struct cache_entry* next;
-} cache_entry_t;
+    bool hash_pronto;
+    bool hash_in_calcolo;
+    int thread_in_attesa;
+    off_t dimensione;
+    time_t ultima_modifica_sec;
+    long ultima_modifica_nsec;
+    pthread_mutex_t mutex;
+    pthread_cond_t cond_var;
+    struct elemento_cache* prossimo;
+} elemento_cache_t;
 
 typedef struct {
-    cache_entry_t** buckets;
+    elemento_cache_t** buckets;
     size_t nbuckets;
-    pthread_mutex_t mtx;
+    pthread_mutex_t mutex;
     unsigned long hits;
     unsigned long misses;
 } cache_t;
@@ -55,17 +55,17 @@ typedef struct {
 typedef struct {
     pthread_t thread;
     int id;
-    bool active;
-} worker_t;
+    bool attivo;
+} thread_t;
 
 typedef struct {
-    job_queue_t job_queue;
+    coda_t coda;
     cache_t cache;
-    worker_t workers[MAX_THREADS];
-    int num_workers;
-    bool running;
-    stats_t stats;
-    pthread_mutex_t stats_mtx;
-} server_ctx_t;
+    thread_t threads[MAX_THREADS];
+    int numero_thread;
+    bool in_esecuzione;
+    statistiche_t statistiche;
+    pthread_mutex_t mutex_statistiche;
+} server_t;
 
 #endif
