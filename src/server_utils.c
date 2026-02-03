@@ -24,11 +24,7 @@ int get_file_mtime(const char* path, time_t* sec, long* nsec) { // Helper per ot
         return -1;                  // Segnala errore
     }
     *sec = st.st_mtime;             // Estrae i secondi dell'ultima modifica e li salva nel puntatore
-    #ifdef __APPLE__                // Direttiva preprocessore: se siamo su macOS
-    *nsec = st.st_mtimespec.tv_nsec; // Usa campo specifico macOS per nanosecondi
-    #else                           // Altrimenti (Linux standard)
     *nsec = st.st_mtim.tv_nsec;     // Usa campo standard Linux per nanosecondi
-    #endif                          // Fine blocco condizionale
     return 0;                       // Ritorna successo
 }
 
@@ -171,13 +167,10 @@ int jq_pop(job_queue_t* q, job_t* out) { // Estrazione job dalla coda
     return 0; // Ritorna successo
 }
 
-unsigned long djb2_hash(const char* s) { // Funzione hash DJB2 per stringhe
-    unsigned long hash = 5381; // Inizializzazione magic number
-    int c; // Variabile char
-    while ((c = *s++)) { // Scorre stringa char per char
-        hash = ((hash << 5) + hash) + c; // Algoritmo: hash * 33 + c
-    }
-    return hash; // Ritorna hash calcolato
+unsigned long path_hash(const char *s) {
+    unsigned long h = 5381;
+    while (*s) h = ((h << 5) + h) + *s++;
+    return h;
 }
 
 void cache_init(cache_t* c, size_t nbuckets) { // Inizializza Hash Table Cache
@@ -208,7 +201,7 @@ void cache_destroy(cache_t* c) { // Distrugge cache
 }
 
 cache_entry_t* cache_get_or_create(cache_t* c, const char* path) { // Helper trova/crea entry (Thread Safe interno)
-    unsigned long hash = djb2_hash(path); // Calcola hash del path
+    unsigned long hash = path_hash(path); // Calcola hash del path
     size_t bucket = hash % c->nbuckets; // Calcola indice bucket
 
     pthread_mutex_lock(&c->mtx); // Lock globale per manipolazione struttura hash map
@@ -286,15 +279,7 @@ bool cache_lookup(cache_t* c, const char* path, off_t size, time_t mtime_sec, lo
     }
     
     // Se non valido e nessuno calcola, tocca a me
-    if (!entry->computing) {
-        entry->computing = true; // Prenoto il calcolo
-        pthread_mutex_unlock(&entry->mtx); // Rilascio lock entry (per permettere calcolo fuori lock)
-
-        pthread_mutex_lock(&c->mtx); // Lock stats
-        c->misses++; // È un MISS
-        pthread_mutex_unlock(&c->mtx); // Unlock stats
-        return false; // Ritorna false (caller deve calcolare)
-    }
+    if (!entry->computing) { entry->computing = true; }
 
     pthread_mutex_unlock(&entry->mtx); // Fallback lock release
     pthread_mutex_lock(&c->mtx); // Lock stats
@@ -488,12 +473,7 @@ int server_run(server_ctx_t* ctx) { // Loop Principale Server
                     ctx->stats.cache_misses = ctx->cache.misses; // Sync misses
                     pthread_mutex_unlock(&ctx->cache.mtx); // Unlock cache
 
-                    // Formatta stringa CSV nel campo msg errore (hack per trasporto dati semplice)
-                    snprintf(resp.error_msg, sizeof(resp.error_msg),
-                            "Requests:%lu,Hits:%lu,Misses:%lu,Processed:%lu,AvgTime:%.3f",
-                            ctx->stats.total_requests, ctx->stats.cache_hits,
-                            ctx->stats.cache_misses, ctx->stats.files_processed,
-                            ctx->stats.avg_processing_time * 1000);
+                    resp.stats = ctx->stats;
                     pthread_mutex_unlock(&ctx->stats_mtx); // Unlock stats
 
                     send_response(req.resp_fifo, resp); // Invia risposta

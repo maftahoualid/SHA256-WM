@@ -25,11 +25,21 @@ typedef struct { // Definizione struttura del messaggio di richiesta (Client -> 
     pid_t client_pid; // PID del processo client (utile per debug o log server)
 } request_msg_t; // Nome del tipo struttura richiesta
 
+// Struttura per raccogliere le statistiche globali del server
+typedef struct {
+    unsigned long total_requests;      // Totale richieste ricevute
+    unsigned long cache_hits;          // Richieste servite dalla cache (file non ricalcolato)
+    unsigned long cache_misses;        // Richieste che hanno richiesto calcolo (file nuovo o modificato)
+    unsigned long files_processed;     // Numero di file di cui è stato calcolato l'hash
+    double avg_processing_time;        // Tempo medio di elaborazione (media mobile)
+} stats_t;
+
 typedef struct { // Definizione struttura del messaggio di risposta (Server -> Client)
     int type; // Tipo di risposta (vedi define RESP_*)
     char hash[HASH_HEX_LEN + 1]; // Buffer per la stringa hash (+1 per terminatore null)
     char error_msg[256]; // Buffer per eventuale messaggio di errore o stringa statistiche
     int error_code; // Codice numerico dell'errore (es. errno)
+    stats_t stats;
 } response_msg_t; // Nome del tipo struttura risposta
 
 // Prototipi delle funzioni definite in common.c:

@@ -24,9 +24,48 @@ SERVER:
    - setta num_workers al numero dato e running a true
    - cicla per num_workers volte : creando ogni volta un nuovo thread che esegue worker_thread 
      con argomento il contesto e salvando il handle del thread nel array workers del contesto [altrimenti errore]
-7.5 ogni thread esegue worker_thread :
-   - ...............................................................................................................................................................................................................................................................................................................................................................................................................................................................................
-   (da completare)
+7.5 ogni thread esegue worker_thread ricevendo il contesto come argomento:
+   - cicla finchè il flag running è a true :
+      - preleva un lavoro dalla coda (bloccante se non ci sono lavori) :
+         - acquisisce il lock della coda 
+         - se coda non chiusa ma vuota : rilascia il lock e attende sulla condition variable della coda per un job
+         - se coda chiusa e vuota : rilascia il lock e fa terminare il thread
+         - se coda non chiusa e non vuota : prende il job in testa (e fa avanzare la testa e decrementa il contatore job in coda)
+         - copia il contenuto del job in testa in una variabile job, e libera la memoria occupata dal nodo della coda 
+         - rilascia il lock della coda
+      - comincia un cronometro
+      - ottiene la dimensione del file dato dal path
+      - se la dimensione da errore o non si riesce a ottenere il tempo di ultima modifica :
+         - crea messaggio [RESP_ERROR/-/cannot access file/codice errore] e lo invia in risposta al client e passa al prossimo job 
+      - controlla la cache per vedere se il file è stato già processato:
+         - calcola l'hash del path per trovare l'indice dell'array dei buckets della cache (che salva in bucket)
+         - acquisisce il lock della cache
+         - con l'indice accede alla entry di cache (il primo elemento del bucket con indice bucket)
+         - scorre il bucket finchè non trova l'elemento di cache con il path cercato (o finchè non finisce le entry)
+         - se scorre il bucket e non trova la entry, la crea :
+            - alloca lo spazio per una entry di cache 
+            - inizializza il path, il hash, ready, computing, waiters, size, tempo in s e ns, 
+            - inizializza il mutex e la cond var della entry e la mette in testa al bucket
+         - rilascia il lock della cache e ritorna la entry trovata o creata
+         - se non riesco ad allocare spazio prendo il lock della cache, incremento i cache miss, rilascio e ritorno cache miss
+         - prendo il lock della entry appena creata
+         - se ready, size e il tempo in sec e nsec corrispondono : preleva l'hash e rilascia il lock della entry 
+         - inoltre prende lock cache, incrementa le cache hits, e lo rilascia e ritorna cache hit
+         - se il hash per la entry è in calcolo : incremento i waiters, e attendo sulla cv della entry
+         - quando vengo risvegliato, il hash è stato calcolato : 
+            - se ready, size e il tempo in sec e nsec corrispondono : preleva l'hash e rilascia il lock della entry 
+            - inoltre prende lock cache, incrementa le cache hits, e lo rilascia e ritorna cache hit
+         - se il hash per la entry non è in calcolo : rilascio lock entry, lock cache, inc misses, unlock cache, ritorna miss
+         - negli altri casi : rilascio lock entry, lock cache, inc misses, unlock cache, ritorna miss
+      - se è una cache miss : calcola un nuovo SHA256 del file (e se fallisce invia un messaggio di errore al client):
+      - recupero la entry dalla cache, ne faccio il lock, ci salvo dentro il hash SHA256 calcolato, e aggiorno i metadati (size, time s, time ns)
+      - nella entry metto ready a true e computing a false, se c'erano thread in attesa del calcolo : li sveglio tutti, poi lascio il lock della entry
+      - faccio il lock delle stats, incremento il numero file processati, e lo rilascio 
+   - se era una cache hit oppure hash appena calcolato : lo invio al client con [RESP_HASH/hash_calcolato/-/0]
+   - stoppo il cronometro e calcolo il tempo passato in secondi
+   - faccio il lock delle statistiche per incrementare il numero totale di richieste e il numero cache hit o miss che c'è appena stato
+   - aggiorno la media mobile del tempo di processamento e rilascio il lock delle stats
+   - il thread stampa un log sul file processato ed esce
 8- crea una nuova fifo pubblica:
    - se non esiste la crea
    - se esiste già ed è una fifo la riutilizza
@@ -75,7 +114,7 @@ SERVER:
    - mette il flag closed a true 
    - segnala con la condition_variable della coda un nuovo job a tutti i worker in attesa 
    - esce della sezione critica per la coda dei job (rilascia il lock)
-   - per ogni thread, se questo è attivo, ne richiede e attende la terminazione, poi lo segna come disattivo
+   - per ogni thread, se questo è attivo, ne attende la terminazione, poi lo segna come disattivo
    - entra in sezione critica per la coda dei job (lock)
    - iniziando dalla testa della coda, scorre tutta la coda liberando la memoria occupata dai nodi
    - azzera il puntatore alla testa e il contatore nodi 

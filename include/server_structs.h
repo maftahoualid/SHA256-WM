@@ -19,15 +19,6 @@
 // Dimensione della tabella hash per la cache (numero di "secchi" o liste concatenate)
 #define HASH_BUCKET_SIZE 1024
 
-// Struttura per raccogliere le statistiche globali del server
-typedef struct {
-    unsigned long total_requests;      // Totale richieste ricevute
-    unsigned long cache_hits;          // Richieste servite dalla cache (file non ricalcolato)
-    unsigned long cache_misses;        // Richieste che hanno richiesto calcolo (file nuovo o modificato)
-    unsigned long files_processed;     // Numero di file di cui è stato calcolato l'hash
-    double avg_processing_time;        // Tempo medio di elaborazione (media mobile)
-} stats_t;
-
 // Costanti per l'ordinamento della coda di priorità
 #define ORDER_ASC  0 // Ordine crescente (file piccoli prima)
 #define ORDER_DESC 1 // Ordine decrescente (file grandi prima)

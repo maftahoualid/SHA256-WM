@@ -147,26 +147,18 @@ int send_stats_request(void) { // Funzione per richiedere statistiche
     unlink(resp_fifo); // Rimuove FIFO dopo aver ricevuto i dati
     
     if (resp.type == RESP_STATS) { // Se la risposta è di tipo STATS
-        printf("=== Server Statistics ===\n"); // Intestazione
+        printf("=== Server Statistics ===\n"); 
         
-        char* stats_str = resp.error_msg; // Il server mette le stats stringificate nel campo error_msg
-        char* token; // Puntatore per tokenizzazione
-        char* saveptr; // Puntatore di stato per strtok_r (thread-safe)
+        // [MODIFICA] Accesso diretto ai campi della struct stats_t
+        printf("Total requests: %lu\n", resp.stats.total_requests);
+        printf("Cache hits: %lu\n", resp.stats.cache_hits);
+        printf("Cache misses: %lu\n", resp.stats.cache_misses);
+        printf("Files processed: %lu\n", resp.stats.files_processed);
+        // Moltiplichiamo per 1000 per avere i ms, dato che la struct originale contiene secondi
+        printf("Average processing time: %.3f ms\n", resp.stats.avg_processing_time * 1000.0);
         
-        // Tokenizza la stringa separata da virgole (es. "Requests:10,Hits:5...")
-        token = strtok_r(stats_str, ",", &saveptr);
-        while (token) { // Ciclo su tutti i token
-            // Parsing manuale delle stringhe chiave-valore
-            if (strncmp(token, "Requests:", 9) == 0) printf("Total requests: %s\n", token + 9);
-            else if (strncmp(token, "Hits:", 5) == 0) printf("Cache hits: %s\n", token + 5);
-            else if (strncmp(token, "Misses:", 7) == 0) printf("Cache misses: %s\n", token + 7);
-            else if (strncmp(token, "Processed:", 10) == 0) printf("Files processed: %s\n", token + 10);
-            else if (strncmp(token, "AvgTime:", 8) == 0) printf("Average processing time: %s ms\n", token + 8);
-            token = strtok_r(NULL, ",", &saveptr); // Avanza al prossimo token
-        }
-        
-        printf("========================\n"); // Chiusura
-        return 0; // Successo
+        printf("========================\n"); 
+        return 0; 
     } else if (resp.type == RESP_ERROR) { // Se il server risponde picche
         fprintf(stderr, "Error getting stats: %s\n", resp.error_msg); // Stampa errore
         return -1; // Fail
