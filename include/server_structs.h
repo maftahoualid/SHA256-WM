@@ -7,15 +7,15 @@
 #include <sys/types.h>
 #include <time.h>
 
-#define MAX_THREADS 8
-#define DEFAULT_WORKERS 4
-#define HASH_BUCKET_SIZE 1024
-#define ORDER_ASC  0
-#define ORDER_DESC 1
+#define NUMERO_MAX_THREAD 8
+#define NUMERO_DEFAULT_THREAD 4
+#define DIMENSIONE_HASH_BUCKET 1024
+#define ORDINE_ASCENDENTE 0
+#define ORDER_DISCENDENTE 1
 
 typedef struct lavoro {
-    char path[MAX_PATH_LEN];
-    char fifo_risposta[MAX_PATH_LEN];
+    char path[LUNGHEZZA_MAX_PATH];
+    char fifo_risposta[LUNGHEZZA_MAX_PATH];
     pid_t pid_client;
     off_t dimensione;
     struct lavoro* prossimo;
@@ -31,8 +31,8 @@ typedef struct {
 } coda_t;
 
 typedef struct elemento_cache {
-    char path[MAX_PATH_LEN];
-    char hash[HASH_HEX_LEN + 1];
+    char path[LUNGHEZZA_MAX_PATH];
+    char hash[LUNGHEZZA_HASH + 1];
     bool hash_pronto;
     bool hash_in_calcolo;
     int thread_in_attesa;
@@ -61,7 +61,7 @@ typedef struct {
 typedef struct {
     coda_t coda;
     cache_t cache;
-    thread_t threads[MAX_THREADS];
+    thread_t threads[NUMERO_MAX_THREAD];
     int numero_thread;
     bool in_esecuzione;
     statistiche_t statistiche;

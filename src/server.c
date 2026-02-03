@@ -14,8 +14,8 @@ int main(int argc, char* argv[]) {
     signal(SIGTERM, gestore_segnali);
     signal(SIGPIPE, SIG_IGN);
 
-    int numero_thread = DEFAULT_WORKERS;
-    int ordine_coda = ORDER_ASC;
+    int numero_thread = NUMERO_DEFAULT_THREAD;
+    int ordine_coda = ORDINE_ASCENDENTE;
     int opt;
 
     static struct option long_options[] = {
@@ -30,16 +30,16 @@ int main(int argc, char* argv[]) {
             case 'w':
                 numero_thread = atoi(optarg);
 
-                if (numero_thread <= 0 || numero_thread > MAX_THREADS) {
-                    fprintf(stderr, "Errore: workers deve essere tra 1 e %d\n", MAX_THREADS);
+                if (numero_thread <= 0 || numero_thread > NUMERO_MAX_THREAD) {
+                    fprintf(stderr, "Errore: workers deve essere tra 1 e %d\n", NUMERO_MAX_THREAD);
                     return 1;
                 }
                 break;
             case 'o':
                 if (strcmp(optarg, "asc") == 0) {
-                    ordine_coda = ORDER_ASC;
+                    ordine_coda = ORDINE_ASCENDENTE;
                 } else if (strcmp(optarg, "desc") == 0) {
-                    ordine_coda = ORDER_DESC;
+                    ordine_coda = ORDER_DISCENDENTE;
                 } else {
                     fprintf(stderr, "Errore: order deve essere 'asc' o 'desc'\n");
                     return 1;

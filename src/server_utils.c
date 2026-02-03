@@ -63,7 +63,7 @@ int sha256_file(const char* path, char* hash_file) {
     for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
         sprintf(hash_file + (i * 2), "%02x", hash[i]);
     }
-    hash_file[HASH_HEX_LEN] = '\0';
+    hash_file[LUNGHEZZA_HASH] = '\0';
 
     return 0;
 }
@@ -89,11 +89,11 @@ void aggiungi_alla_coda(coda_t* coda, const char* path, const char* fifo_rispost
     lavoro_t* lavoro = malloc(sizeof(lavoro_t));
     if (!lavoro) return;
 
-    strncpy(lavoro->path, path, MAX_PATH_LEN - 1);
-    lavoro->path[MAX_PATH_LEN - 1] = '\0';
+    strncpy(lavoro->path, path, LUNGHEZZA_MAX_PATH - 1);
+    lavoro->path[LUNGHEZZA_MAX_PATH - 1] = '\0';
 
-    strncpy(lavoro->fifo_risposta, fifo_risposta, MAX_PATH_LEN - 1);
-    lavoro->fifo_risposta[MAX_PATH_LEN - 1] = '\0';
+    strncpy(lavoro->fifo_risposta, fifo_risposta, LUNGHEZZA_MAX_PATH - 1);
+    lavoro->fifo_risposta[LUNGHEZZA_MAX_PATH - 1] = '\0';
 
     lavoro->pid_client = pid_client;
     lavoro->dimensione = dimensione;
@@ -111,7 +111,7 @@ void aggiungi_alla_coda(coda_t* coda, const char* path, const char* fifo_rispost
 
     while (*p) {
 
-        bool scorri_avanti = (coda->ordine == ORDER_ASC) ? (dimensione >= (*p)->dimensione) : (dimensione <= (*p)->dimensione);
+        bool scorri_avanti = (coda->ordine == ORDINE_ASCENDENTE) ? (dimensione >= (*p)->dimensione) : (dimensione <= (*p)->dimensione);
         if (!scorri_avanti) break;
         p = &(*p)->prossimo;
     }
@@ -186,8 +186,8 @@ elemento_cache_t* ottieni_elemento_cache(cache_t* cache, const char* path) {
         elemento = malloc(sizeof(elemento_cache_t));
         if (elemento) {
             *elemento = (elemento_cache_t){.prossimo = cache->buckets[bucket]};
-            strncpy(elemento->path, path, MAX_PATH_LEN - 1);
-            elemento->path[MAX_PATH_LEN - 1] = '\0';
+            strncpy(elemento->path, path, LUNGHEZZA_MAX_PATH - 1);
+            elemento->path[LUNGHEZZA_MAX_PATH - 1] = '\0';
             pthread_mutex_init(&elemento->mutex, NULL);
             pthread_cond_init(&elemento->cond_var, NULL);
             cache->buckets[bucket] = elemento;
@@ -300,19 +300,19 @@ void* funzione_thread(void* arg) {
 
 
         if (dimensione == -1 || ultima_modifica(lavoro.path, &ultima_modifica_sec, &ultima_modifica_nsec) == -1) {
-            messaggio_risposta_t risposta = { .tipo = RESP_ERROR, .codice = errno };
+            messaggio_risposta_t risposta = { .tipo = ERRORE, .codice = errno };
             snprintf(risposta.messaggio, sizeof(risposta.messaggio), "Cannot access file: %s", strerror(errno));
             invia_risposta(lavoro.fifo_risposta, risposta);
             continue;
         }
 
-        char hash[HASH_HEX_LEN + 1];
+        char hash[LUNGHEZZA_HASH + 1];
 
         bool cache_hit = controllo_cache(&server->cache, lavoro.path, dimensione, ultima_modifica_sec, ultima_modifica_nsec, hash);
 
         if (!cache_hit) {
             if (sha256_file(lavoro.path, hash) == -1) {
-                    messaggio_risposta_t risposta = { .tipo = RESP_ERROR, .codice = errno };
+                    messaggio_risposta_t risposta = { .tipo = ERRORE, .codice = errno };
                     snprintf(risposta.messaggio, sizeof(risposta.messaggio), "Cannot compute hash: %s", strerror(errno));
                     invia_risposta(lavoro.fifo_risposta, risposta);
                     continue;
@@ -325,7 +325,7 @@ void* funzione_thread(void* arg) {
             pthread_mutex_unlock(&server->mutex_statistiche);
         }
 
-        messaggio_risposta_t risposta = { .tipo = RESP_HASH, .codice = 0, .messaggio = "" };
+        messaggio_risposta_t risposta = { .tipo = RISPOSTA_HASH, .codice = 0, .messaggio = "" };
         strcpy(risposta.hash, hash);
         int fifo_risposta = invia_risposta(lavoro.fifo_risposta, risposta);
         if (fifo_risposta == -1) printf("Warning: Cannot open response FIFO for client\n");
@@ -361,7 +361,7 @@ int inizializza_server(server_t* server, int numero_thread, int ordine) {
     pthread_cond_init(&server->coda.cond_var, NULL);
     pthread_mutex_init(&server->coda.mutex, NULL);
 
-    server->cache = (cache_t){ .buckets = calloc(HASH_BUCKET_SIZE, sizeof(elemento_cache_t*)), .nbuckets = HASH_BUCKET_SIZE };
+    server->cache = (cache_t){ .buckets = calloc(DIMENSIONE_HASH_BUCKET, sizeof(elemento_cache_t*)), .nbuckets = DIMENSIONE_HASH_BUCKET };
     pthread_mutex_init(&server->cache.mutex, NULL);
 
     memset(&server->statistiche, 0, sizeof(statistiche_t));
@@ -422,15 +422,15 @@ int esegui_server(server_t* server) {
             if (leggi_da_fifo(fifo_richiesta, &richiesta, sizeof(richiesta)) == -1) { break; }
             
             switch (richiesta.tipo) {
-                case REQ_HASH_FILE: {
+                case RICHIESTA_HASH: {
                     if (!(access(richiesta.path, F_OK) == 0)) {
-                            messaggio_risposta_t risposta = { .tipo = RESP_ERROR, .codice = ENOENT, .messaggio = "File not found" };
+                            messaggio_risposta_t risposta = { .tipo = ERRORE, .codice = ENOENT, .messaggio = "File not found" };
                             invia_risposta(richiesta.fifo_risposta, risposta);
                             break;
                     }
                     off_t dimensione = dimensione_file(richiesta.path);
                     if (dimensione == -1) {
-                        messaggio_risposta_t risposta = { .tipo = RESP_ERROR, .codice = errno };
+                        messaggio_risposta_t risposta = { .tipo = ERRORE, .codice = errno };
                         snprintf(risposta.messaggio, sizeof(risposta.messaggio), "%s", strerror(errno));
                         invia_risposta(richiesta.fifo_risposta, risposta);
                         break;
@@ -439,8 +439,8 @@ int esegui_server(server_t* server) {
                     aggiungi_alla_coda(&server->coda, richiesta.path, richiesta.fifo_risposta, richiesta.pid_client, dimensione);
                     break;
                 }
-                case REQ_STATS: {
-                    messaggio_risposta_t risposta = { .tipo = RESP_STATS, .codice = 0 };
+                case RICHIESTA_STATISTICHE: {
+                    messaggio_risposta_t risposta = { .tipo = RISPOSTA_STATISTICHE, .codice = 0 };
 
                     pthread_mutex_lock(&server->mutex_statistiche);
                     pthread_mutex_lock(&server->cache.mutex);
@@ -454,7 +454,7 @@ int esegui_server(server_t* server) {
                     invia_risposta(richiesta.fifo_risposta, risposta);
                     break;
                 }
-                case REQ_TERMINATE:
+                case CHIUSURA:
                     printf("Received termination request\n");
                     server->in_esecuzione = false;
                     break;

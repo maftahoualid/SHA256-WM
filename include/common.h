@@ -6,22 +6,22 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#define REQUEST_FIFO_PATH "/tmp/fifo_richiesta_"
-#define CLIENT_FIFO_PREFIX "/tmp/fifo_risposta"
-#define MAX_PATH_LEN 1024
-#define HASH_HEX_LEN 64
+#define PATH_FIFO_RICHIESTA "/tmp/fifo_richiesta_"
+#define PATH_FIFO_CLIENT "/tmp/fifo_risposta"
+#define LUNGHEZZA_MAX_PATH 1024
+#define LUNGHEZZA_HASH 64
 
-#define REQ_HASH_FILE 0
-#define REQ_TERMINATE 1
-#define REQ_STATS     2
-#define RESP_HASH     3
-#define RESP_ERROR    4
-#define RESP_STATS    5
+#define RICHIESTA_HASH 0
+#define RISPOSTA_HASH     1
+#define RICHIESTA_STATISTICHE     2
+#define RISPOSTA_STATISTICHE    3
+#define ERRORE    4
+#define CHIUSURA 5
 
 typedef struct {
     int tipo;
-    char path[MAX_PATH_LEN];
-    char fifo_risposta[MAX_PATH_LEN];
+    char path[LUNGHEZZA_MAX_PATH];
+    char fifo_risposta[LUNGHEZZA_MAX_PATH];
     pid_t pid_client;
 } messaggio_richiesta_t;
 
@@ -35,7 +35,7 @@ typedef struct {
 
 typedef struct {
     int tipo;
-    char hash[HASH_HEX_LEN + 1];
+    char hash[LUNGHEZZA_HASH + 1];
     char messaggio[256];
     int codice;
     statistiche_t statistiche;
