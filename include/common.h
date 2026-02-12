@@ -6,8 +6,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#define REQUEST_FIFO_PATH "/tmp/sha256_req_fifo"
-#define CLIENT_FIFO_PREFIX "/tmp/sha256_resp_"
+#define REQUEST_FIFO_PATH "/tmp/hash_server"
+#define CLIENT_FIFO_PREFIX "/tmp/hash_client_"
 #define MAX_PATH_LEN 1024
 #define HASH_HEX_LEN 64
 
@@ -18,11 +18,60 @@
 #define RESP_ERROR    4
 #define RESP_STATS    5
 
+
+#define RED     "\x1b[31m"
+#define GREEN   "\x1b[32m"
+#define YELLOW  "\x1b[33m"
+#define BLUE    "\x1b[34m"
+#define MAGENTA "\x1b[35m"
+#define CYAN    "\x1b[36m"
+#define RES     "\x1b[0m"
+#define BOLD    "\x1b[1m"
+
+#define LOG_ERR(fmt, ...) do { \
+    fprintf(stderr, BOLD RED "[ERRORE]" RES fmt "\n", ##__VA_ARGS__); \
+} while(0);
+
+#define FATAL(fmt, ...) do { \
+    LOG_ERR(fmt, ##__VA_ARGS__); \
+    exit(EXIT_FAILURE); \
+} while(0);
+
+#define EXIT_IF(cond, fmt, ...) do { \
+    if (cond) { FATAL(fmt, ##__VA_ARGS__); } \
+} while(0);
+
+/* --- MACRO UTILI (da unificare poi in common.h) --- */
+
+// Controlla allocazione memoria
+#define CHECK_ALLOC(ptr) do { \
+    if ((ptr) == NULL) { \
+        LOG_ERR("Memory allocation failed"); \
+        return -1; \
+    } \
+} while(0);
+
+// Controlla funzioni pthread (ritornano errno, non -1)
+#define CHECK(func_call) do { \
+    int _err = (int)(func_call); \
+    if (_err != 0) { \
+        fprintf(stderr, BOLD RED "[ERRORE] %s Fallita: %s\n" RES, #func_call, strerror(_err)); \
+    }; \
+} while(0);
+
+#define CHECK_RET(call) do { \
+    int _error = (call); \
+    if (_error != 0) { \
+        fprintf(stderr, BOLD RED "[ERRORE] %s Fallita: %s\n" RES, #call, strerror(_error)); \
+        return -1; \
+    }; \
+} while(0);
+
 typedef struct {
     int type;
     char path[MAX_PATH_LEN];
-    char resp_fifo[MAX_PATH_LEN];
-    pid_t client_pid;
+    char response_fifo_path[MAX_PATH_LEN];
+    pid_t pid;
 } request_msg_t;
 
 typedef struct {
@@ -36,12 +85,12 @@ typedef struct {
 typedef struct {
     int type;
     char hash[HASH_HEX_LEN + 1];
-    char error_msg[256];
+    char message[256];
     int error_code;
     stats_t stats;
 } response_msg_t;
 
-int ensure_fifo(const char* path, mode_t mode);
+int create_fifo(const char* path, mode_t mode);
 
 int open_fifo_read(const char* path);
 

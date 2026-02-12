@@ -7,25 +7,31 @@
 #include <errno.h>
 #include <sys/stat.h>
 
-int ensure_fifo(const char* path, mode_t mode) {
+int create_fifo(const char* path, mode_t mode) {
     if (mkfifo(path, mode) == 0) return 0;
-    if (errno != EEXIST) { perror("mkfifo"); return -1; }
+    if (errno != EEXIST) { perror(BOLD RED"[ERRORE] mkfifo"); return -1; }
     struct stat st;
 
     if (stat(path, &st) == 0 && S_ISFIFO(st.st_mode)) { return 0; }
-    fprintf(stderr, "Errore: '%s' esiste e non è una FIFO.\n", path);
+    fprintf(stderr, BOLD RED"[ERRORE] '%s' esiste e non è una FIFO."RES"\n", path);
     return -1;
 }
 
 int open_fifo_read(const char* path) {
-    int fd = open(path, O_RDONLY);
-    if (fd == -1) { perror("open fifo read"); }
+    int fd;
+    do {
+        fd = open(path, O_RDONLY);
+    } while (fd == -1 && errno == EINTR);
+    if (fd == -1) { perror(BOLD RED"[ERRORE] open fifo read"RES"\n"); }
     return fd;
 }
 
 int open_fifo_write(const char* path) {
-    int fd = open(path, O_WRONLY);
-    if (fd == -1) { perror("open fifo write"); }
+    int fd;
+    do {
+        fd = open(path, O_WRONLY);
+    } while (fd == -1 && errno == EINTR);
+    if (fd == -1) { perror(BOLD RED"[ERRORE] open fifo write"RES"\n"); }
     return fd;
 }
 
@@ -33,16 +39,16 @@ int send_response(const char* fifo, response_msg_t resp) {
     int fd = open_fifo_write(fifo);
     if (fd == -1) return -1;
 
-    if (write_exact(fd, &resp, sizeof(resp)) == -1) { printf("Warning: Failed to send response to %s\n", fifo); } 
+    if (write_exact(fd, &resp, sizeof(resp)) == -1) { printf(BOLD RED"[ERRORE] Failed to send response to %s"RES"\n", fifo); close(fd); return -1;} 
     close(fd);
-    return fd;
+    return 0;
 }
 
 int send_request(const char* server_fifo, request_msg_t req) {
     int fd = open_fifo_write(server_fifo);
     if (fd == -1) return -1;
 
-    if (write_exact(fd, &req, sizeof(req)) == -1) { printf("Warning: Failed to send request to %s\n", server_fifo); }
+    if (write_exact(fd, &req, sizeof(req)) == -1) { printf(BOLD RED"[ERRORE] Failed to send request to %s"RES"\n", server_fifo); }
     close(fd);
     return fd;
 }
@@ -106,9 +112,9 @@ void print_usage(const char* progname) {
     printf("Usage: %s [OPTIONS]\n", progname);
     printf("Options:\n");
     printf("  -h, --help              Show this help message\n");
-    printf("  -w, --workers N         Number of worker threads (default: 4)\n");
-    printf("  -o, --order asc|desc    File processing order (default: asc)\n");
-    printf("  -s, --stats             Show server statistics\n");
-    printf("  -t, --terminate         Terminate server\n");
+    printf("  -t, --threads N         Number of worker threads (default: 4)\n");
+    printf("  -o, --order <asc|desc>  File processing order (default: asc)\n");
+    printf("  -s, --statistics        Show server statistics\n");
+    printf("  -c, --close             Terminate server\n");
     printf("  FILE                    Request hash for FILE\n");
 }

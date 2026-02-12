@@ -3,48 +3,34 @@
 
 #include "server_structs.h"
 
-extern server_ctx_t* g_server_ctx;
-
-off_t file_size(const char* path);
-
-int get_file_mtime(const char* path, time_t* sec, long* nsec);
-
-bool file_exists(const char* path);
+extern server_t* g_server;
 
 int compute_sha256(const char* filepath, char* hash_hex);
 
-void jq_init(job_queue_t* q, int order);
+void close_queue(job_queue_t* queue);
 
-void jq_destroy(job_queue_t* q);
+void add_to_queue(job_queue_t* queue, const char* path, const char* response_fifo_path, pid_t pid, off_t size);
 
-void jq_close(job_queue_t* q);
+int get_from_queue(job_queue_t* queue, job_t* j);
 
-void jq_push(job_queue_t* q, const char* path, const char* resp_fifo, pid_t client_pid, off_t size);
+void close_cache(cache_t* cache);
 
-int jq_pop(job_queue_t* q, job_t* out);
+cache_entry_t* get_cache_entry(cache_t* cache, const char* path);
 
-unsigned long djb2_hash(const char* s);
+bool search_cache(cache_t* cache, const char* path, off_t size, time_t last_upd_sec, long last_upd_nsec, char* hash_out);
 
-void cache_init(cache_t* c, size_t nbuckets);
-
-void cache_destroy(cache_t* c);
-
-cache_entry_t* cache_get_or_create(cache_t* c, const char* path);
-
-bool cache_lookup(cache_t* c, const char* path, off_t size, time_t mtime_sec, long mtime_nsec, char* hash_out);
-
-void cache_store(cache_t* c, const char* path, off_t size, time_t mtime_sec, long mtime_nsec, const char* hash);
+void add_to_cache(cache_t* cache, const char* path, off_t size, time_t last_upd_sec, long last_upd_nsec, const char* hash);
 
 void signal_handler(int sig);
 
-void* worker_thread(void* arg);
+void* thread_function(void* arg);
 
-int server_init(server_ctx_t* ctx, int num_workers, int order);
+int init_server(server_t* ctx, int num_workers, int order);
 
-void server_destroy(server_ctx_t* ctx);
+void close_server(server_t* ctx);
 
-int server_run(server_ctx_t* ctx);
+int run_server(server_t* ctx);
 
-void print_stats(const stats_t* stats);
+void show_statistics(const stats_t* stats);
 
 #endif

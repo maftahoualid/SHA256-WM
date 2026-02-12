@@ -16,7 +16,7 @@ echo "=== TEST COMPLETO DELLE FEATURE RICHIESTE ==="
 echo ""
 
 echo "=== 1. AVVIO SERVER CON 3 WORKER THREADS (Threading + Limite fisso) ==="
-./bin/server -w 3 -o desc &
+./bin/server -t 3 -o desc &
 SERVER_PID=$!
 sleep 2
 

@@ -6,7 +6,7 @@
 #include <signal.h>
 #include <getopt.h>
 
-server_ctx_t* g_server_ctx = NULL;
+server_t* g_server = NULL;
 
 int main(int argc, char* argv[]) {
 
@@ -14,62 +14,49 @@ int main(int argc, char* argv[]) {
     signal(SIGTERM, signal_handler);
     signal(SIGPIPE, SIG_IGN);
 
-    int num_workers = DEFAULT_WORKERS;
-    int order = ORDER_ASC;
-    int opt;
+    int errno = 0;
+    char* endptr;
+    setvbuf(stdout, NULL, _IONBF, 0);
 
+    int n_threads = DEFAULT_THREADS;
+    int sched_order = ASCENDANT;
+
+    int opt;
     static struct option long_options[] = {
-        {"workers", required_argument, 0, 'w'},
-        {"order",   required_argument, 0, 'o'},
-        {"help",    no_argument,       0, 'h'},
-        {0,         0,                 0,  0 }
+        {"threads",     required_argument, 0, 't'},
+        {"order",       required_argument, 0, 'o'},
+        {"help",        no_argument,       0, 'h'},
+        {0,             0,                 0,  0 }
     };
 
 
-    while ((opt = getopt_long(argc, argv, "w:o:h", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "t:o:h", long_options, NULL)) != -1) {
         switch (opt) {
-            case 'w':
-                num_workers = atoi(optarg);
-
-                if (num_workers <= 0 || num_workers > MAX_THREADS) {
-                    fprintf(stderr, "Errore: workers deve essere tra 1 e %d\n", MAX_THREADS);
-                    return 1;
-                }
+            case 't':
+                n_threads = strtol(optarg, &endptr, 10);
+                EXIT_IF(errno != 0 || *endptr != '\0' || n_threads <= 0 || n_threads > MAX_THREADS, "[SERVER][ERRORE] Numero thread non valido (1-%d): %s", MAX_THREADS, optarg);
                 break;
             case 'o':
-                if (strcmp(optarg, "asc") == 0) {
-                    order = ORDER_ASC;
-                } else if (strcmp(optarg, "desc") == 0) {
-                    order = ORDER_DESC;
-                } else {
-                    fprintf(stderr, "Errore: order deve essere 'asc' o 'desc'\n");
-                    return 1;
-                }
+                if (strcmp(optarg, "asc") == 0) sched_order = ASCENDANT;
+                else if (strcmp(optarg, "desc") == 0) sched_order = DESCENDANT;
+                else FATAL("[SERVER][ERRORE] L'ordine deve essere 'asc' o 'desc'\n");
                 break;
             case 'h':
                 print_usage(argv[0]);
                 return 0;
             case '?':
                 print_usage(argv[0]);
-                return 1;
+                FATAL("[SERVER][ERRORE] Parametro non valido\n");
             default:
                 abort();
         }
     }
 
-    server_ctx_t ctx;
-    g_server_ctx = &ctx;
-
-
-    if (server_init(&ctx, num_workers, order) == -1) { 
-        fprintf(stderr, "Failed to initialize server\n");
-        return 1;
-    }
-    
-
-    int result = server_run(&ctx);
-
-    server_destroy(&ctx);
+    server_t server;
+    g_server = &server;
+    EXIT_IF(init_server(&server, n_threads, sched_order) == -1, "[SERVER][ERRORE] Inizializzazione server fallita");
+    int s = run_server(&server);
+    close_server(&server);
     unlink(REQUEST_FIFO_PATH);
-    return result;
+    return s;
 }
