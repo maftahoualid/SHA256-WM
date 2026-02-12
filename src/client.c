@@ -8,25 +8,25 @@
 #include <errno.h>
 #include <getopt.h>
 
-int chiedi_hash(const char* path) {
-    char fifo_risposta[LUNGHEZZA_MAX_PATH];
+int send_hash_request(const char* filepath) {
+    char resp_fifo[MAX_PATH_LEN];
 
-    snprintf(fifo_risposta, sizeof(fifo_risposta), "%s%d", PATH_FIFO_CLIENT, getpid());
-    if (crea_fifo(fifo_risposta, 0666) == -1) { return -1; }
-    messaggio_richiesta_t richiesta = { .tipo = RICHIESTA_HASH, .pid_client = getpid() };
-    strncpy(richiesta.path, path, sizeof(richiesta.path) - 1);
-    snprintf(richiesta.fifo_risposta, sizeof(richiesta.fifo_risposta), "%s", fifo_risposta);
-    struct timespec inizio, fine;
-    clock_gettime(1, &inizio);
+    snprintf(resp_fifo, sizeof(resp_fifo), "%s%d", CLIENT_FIFO_PREFIX, getpid());
+    if (ensure_fifo(resp_fifo, 0666) == -1) { return -1; }
+    request_msg_t req = { .type = REQ_HASH_FILE, .client_pid = getpid() };
+    strncpy(req.path, filepath, sizeof(req.path) - 1);
+    snprintf(req.resp_fifo, sizeof(req.resp_fifo), "%s", resp_fifo);
+    struct timespec start_time, end_time;
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
 
-    if (invia_richiesta(PATH_FIFO_RICHIESTA, richiesta) == -1) {
+    if (send_request(REQUEST_FIFO_PATH, req) == -1) {
         fprintf(stderr, "Error: Cannot connect to server! Is the server running?\n");
-        unlink(fifo_risposta);
+        unlink(resp_fifo);
         return -1;
     }
    
-    int resp_fd = apri_fifo_lettura(fifo_risposta);
-    if (resp_fd == -1) { perror("open response FIFO"); unlink(fifo_risposta); return -1; }
+    int resp_fd = open_fifo_read(resp_fifo);
+    if (resp_fd == -1) { perror("open response FIFO"); unlink(resp_fifo); return -1; }
     
     struct pollfd fds[1];
     fds[0].fd = resp_fd;
@@ -40,83 +40,87 @@ int chiedi_hash(const char* path) {
             perror("poll");
         }
         close(resp_fd);
-        unlink(fifo_risposta);
+        unlink(resp_fifo);
         return -1;
     }
     
-    messaggio_risposta_t risposta;
-    if (leggi_da_fifo(resp_fd, &risposta, sizeof(risposta)) == -1) {
+    response_msg_t resp;
+    if (read_exact(resp_fd, &resp, sizeof(resp)) == -1) {
         perror("read response");
         close(resp_fd);
-        unlink(fifo_risposta);
+        unlink(resp_fifo);
         return -1;
     }
     close(resp_fd);
-    unlink(fifo_risposta);
+    unlink(resp_fifo);
     
-    clock_gettime(1, &fine);
-    double tempo_trascorso = differenza(inizio, fine);
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    double elapsed = get_time_diff(start_time, end_time);
     
-    switch (risposta.tipo) {
-        case RISPOSTA_HASH:
-            printf("File: %s\n", path);
-            printf("SHA-256: %s\n", risposta.hash);
-            printf("Time: %.3f ms\n", tempo_trascorso * 1000);
+    switch (resp.type) {
+        case RESP_HASH:
+            printf("File: %s\n", filepath);
+            printf("SHA-256: %s\n", resp.hash);
+            printf("Time: %.3f ms\n", elapsed * 1000);
             return 0;
             
-        case ERRORE:
-            fprintf(stderr, "Error: %s (code: %d)\n", risposta.messaggio, risposta.codice);
+        case RESP_ERROR:
+            fprintf(stderr, "Error: %s (code: %d)\n", resp.error_msg, resp.error_code);
             return -1;
             
         default:
-            fprintf(stderr, "Unknown response type: %d\n", risposta.tipo);
+            fprintf(stderr, "Unknown response type: %d\n", resp.type);
             return -1;
     }
 }
 
-int chiedi_chiusura_server(void) {
-    char fifo_risposta[LUNGHEZZA_MAX_PATH];
-    snprintf(fifo_risposta, sizeof(fifo_risposta), "%s%d", PATH_FIFO_CLIENT, getpid());
+int send_terminate_request(void) {
+    char resp_fifo[MAX_PATH_LEN];
+    snprintf(resp_fifo, sizeof(resp_fifo), "%s%d", CLIENT_FIFO_PREFIX, getpid());
    
-    if (crea_fifo(fifo_risposta, 0666) == -1) { return -1; }
+    if (ensure_fifo(resp_fifo, 0666) == -1) { return -1; }
 
-    messaggio_richiesta_t richiesta = { .tipo = CHIUSURA, .pid_client = getpid() };
-    snprintf(richiesta.fifo_risposta, sizeof(richiesta.fifo_risposta), "%s", fifo_risposta);
-    if (invia_richiesta(PATH_FIFO_RICHIESTA, richiesta) == -1) { fprintf(stderr, "Error: Cannot connect to server\n"); unlink(fifo_risposta); return -1; }
+    request_msg_t req = { .type = REQ_TERMINATE, .client_pid = getpid() };
+    snprintf(req.resp_fifo, sizeof(req.resp_fifo), "%s", resp_fifo);
+    if (send_request(REQUEST_FIFO_PATH, req) == -1) { fprintf(stderr, "Error: Cannot connect to server\n"); unlink(resp_fifo); return -1; }
 
-    unlink(fifo_risposta);
+    unlink(resp_fifo);
     printf("Termination request sent to server\n");
     return 0;
 }
 
-int chiedi_statistiche(void) {
-    char fifo_risposta[LUNGHEZZA_MAX_PATH];
+int send_stats_request(void) {
+    char resp_fifo[MAX_PATH_LEN];
 
-    snprintf(fifo_risposta, sizeof(fifo_risposta), "%s%d", PATH_FIFO_CLIENT, getpid());
-    if (crea_fifo(fifo_risposta, 0666) == -1) { return -1; }
+    snprintf(resp_fifo, sizeof(resp_fifo), "%s%d", CLIENT_FIFO_PREFIX, getpid());
+    if (ensure_fifo(resp_fifo, 0666) == -1) { return -1; }
     
-    messaggio_richiesta_t richiesta = { .tipo = RICHIESTA_STATISTICHE, .pid_client = getpid() };
-    snprintf(richiesta.fifo_risposta, sizeof(richiesta.fifo_risposta), "%s", fifo_risposta);
-    if (invia_richiesta(PATH_FIFO_RICHIESTA, richiesta) == -1) { fprintf(stderr, "Error: Cannot connect to server. Is the server running?\n"); unlink(fifo_risposta); return -1; }
+    request_msg_t req = { .type = REQ_STATS, .client_pid = getpid() };
+    snprintf(req.resp_fifo, sizeof(req.resp_fifo), "%s", resp_fifo);
+    if (send_request(REQUEST_FIFO_PATH, req) == -1) { fprintf(stderr, "Error: Cannot connect to server. Is the server running?\n"); unlink(resp_fifo); return -1; }
     
-    messaggio_risposta_t risposta;
-    if (leggi_risposta(fifo_risposta, &risposta) == -1) { perror("read response"); unlink(fifo_risposta); return -1; }
-    unlink(fifo_risposta);
+    response_msg_t resp;
+    if (read_response(resp_fifo, &resp) == -1) { perror("read response"); unlink(resp_fifo); return -1; }
+    unlink(resp_fifo);
     
-    if (risposta.tipo == RISPOSTA_STATISTICHE) {
+    if (resp.type == RESP_STATS) {
         printf("=== Server Statistics ===\n"); 
-        printf("Total requests: %lu\n", risposta.statistiche.richieste_totali);
-        printf("Cache hits: %lu\n", risposta.statistiche.cache_hits);
-        printf("Cache misses: %lu\n", risposta.statistiche.cache_misses);
-        printf("Files processed: %lu\n", risposta.statistiche.file_processati);
-        printf("Average processing time: %.3f ms\n", risposta.statistiche.media_tempo_processamento * 1000.0);
+        
+
+        printf("Total requests: %lu\n", resp.stats.total_requests);
+        printf("Cache hits: %lu\n", resp.stats.cache_hits);
+        printf("Cache misses: %lu\n", resp.stats.cache_misses);
+        printf("Files processed: %lu\n", resp.stats.files_processed);
+
+        printf("Average processing time: %.3f ms\n", resp.stats.avg_processing_time * 1000.0);
+        
         printf("========================\n"); 
         return 0; 
-    } else if (risposta.tipo == ERRORE) {
-        fprintf(stderr, "Error getting stats: %s\n", risposta.messaggio);
+    } else if (resp.type == RESP_ERROR) {
+        fprintf(stderr, "Error getting stats: %s\n", resp.error_msg);
         return -1;
     } else {
-        fprintf(stderr, "Unknown response type: %d\n", risposta.tipo);
+        fprintf(stderr, "Unknown response type: %d\n", resp.type);
         return -1;
     }
 }
@@ -133,25 +137,25 @@ int main(int argc, char* argv[]) {
         {0,           0,                 0,  0 }
     };
 
-    if (argc < 2) { stampa_menu(argv[0]); return 1; }
+    if (argc < 2) { print_usage(argv[0]); return 1; }
 
     while ((opt = getopt_long(argc, argv, "hp:st", long_options, &option_index)) != -1) {
         switch (opt) {
             case 'p': { 
                 char abs_path[4096];
-                char* path = optarg; 
+                char* filepath = optarg; 
 
-                if (realpath(path, abs_path) == NULL) { perror("Errore realpath"); return 1; }
+                if (realpath(filepath, abs_path) == NULL) { perror("Errore realpath"); return 1; }
 
-                if (strlen(abs_path) >= LUNGHEZZA_MAX_PATH) { fprintf(stderr, "Errore: Il percorso è troppo lungo\n"); return 1; }
+                if (strlen(abs_path) >= MAX_PATH_LEN) { fprintf(stderr, "Errore: Il percorso è troppo lungo\n"); return 1; }
 
-                if (chiedi_hash(abs_path) == -1) { fprintf(stderr, "Errore: Invio Richiesta Hash fallito per %s\n", abs_path); return 1; }
+                if (send_hash_request(abs_path) == -1) { fprintf(stderr, "Errore: Invio Richiesta Hash fallito per %s\n", abs_path); return 1; }
                 break;
             }
-            case 'h': stampa_menu(argv[0]); return 0;
-            case 's': return chiedi_statistiche();
-            case 't': return chiedi_chiusura_server();
-            case '?': stampa_menu(argv[0]); return 1;
+            case 'h': print_usage(argv[0]); return 0;
+            case 's': return send_stats_request();
+            case 't': return send_terminate_request();
+            case '?': print_usage(argv[0]); return 1;
             default:
                 abort();
         }

@@ -10,38 +10,43 @@
 #include <openssl/sha.h>
 
 
-off_t dimensione_file(const char* path) {
-    struct stat stat_file;
-    if (stat(path, &stat_file) == -1) {
+off_t file_size(const char* path) {
+    struct stat st;
+    if (stat(path, &st) == -1) {
         return -1;
     }
-    return stat_file.st_size;
+    return st.st_size;
 }
 
-int ultima_modifica(const char* path, time_t* secondi, long* nanosecondi) {
-    struct stat stat_file;
-    if (stat(path, &stat_file) == -1) {
+int get_file_mtime(const char* path, time_t* sec, long* nsec) {
+    struct stat st;
+    if (stat(path, &st) == -1) {
         return -1;
     }
-    *secondi = stat_file.st_mtime;
-    *nanosecondi = stat_file.st_mtim.tv_nsec;
+    *sec = st.st_mtime;
+    *nsec = st.st_mtim.tv_nsec;
     return 0;
 }
 
-void stampa_statistiche(const statistiche_t* statistiche) {
-    printf("=== Server Statistics ===\n");
-    printf("Total requests: %lu\n", statistiche->richieste_totali);
-    printf("Cache hits: %lu\n", statistiche->cache_hits);
-    printf("Cache misses: %lu\n", statistiche->cache_misses);
-    printf("Files processed: %lu\n", statistiche->file_processati);
+bool file_exists(const char* path) {
+    int result = access(path, F_OK);
+    return (result == 0);
+}
 
-    printf("Cache hit ratio: %.2f%%\n", statistiche->richieste_totali > 0 ? (100.0 * statistiche->cache_hits / statistiche->richieste_totali) : 0.0);
-    printf("Average processing time: %.3f ms\n", statistiche->media_tempo_processamento * 1000);
+void print_stats(const stats_t* stats) {
+    printf("=== Server Statistics ===\n");
+    printf("Total requests: %lu\n", stats->total_requests);
+    printf("Cache hits: %lu\n", stats->cache_hits);
+    printf("Cache misses: %lu\n", stats->cache_misses);
+    printf("Files processed: %lu\n", stats->files_processed);
+
+    printf("Cache hit ratio: %.2f%%\n", stats->total_requests > 0 ? (100.0 * stats->cache_hits / stats->total_requests) : 0.0);
+    printf("Average processing time: %.3f ms\n", stats->avg_processing_time * 1000);
     printf("========================\n");
 }
 
-int sha256_file(const char* path, char* hash_file) {
-    FILE* file = fopen(path, "rb");
+int compute_sha256(const char* filepath, char* hash_hex) {
+    FILE* file = fopen(filepath, "rb");
     if (!file) {
         return -1;
     }
@@ -49,10 +54,10 @@ int sha256_file(const char* path, char* hash_file) {
     SHA256_Init(&sha256_ctx);
 
     char buffer[4096];
-    size_t letti;
+    size_t bytes_read;
 
-    while ((letti = fread(buffer, 1, sizeof(buffer), file)) > 0) {
-        SHA256_Update(&sha256_ctx, buffer, letti);
+    while ((bytes_read = fread(buffer, 1, sizeof(buffer), file)) > 0) {
+        SHA256_Update(&sha256_ctx, buffer, bytes_read);
     }
 
     fclose(file);
@@ -61,88 +66,88 @@ int sha256_file(const char* path, char* hash_file) {
     SHA256_Final(hash, &sha256_ctx);
 
     for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
-        sprintf(hash_file + (i * 2), "%02x", hash[i]);
+        sprintf(hash_hex + (i * 2), "%02x", hash[i]);
     }
-    hash_file[LUNGHEZZA_HASH] = '\0';
+    hash_hex[HASH_HEX_LEN] = '\0';
 
     return 0;
 }
 
-void elimina_coda(coda_t* coda) {
-    pthread_mutex_lock(&coda->mutex);
+void jq_destroy(job_queue_t* q) {
+    pthread_mutex_lock(&q->mtx);
 
-    lavoro_t* corrente = coda->testa;
-    while (corrente) {
-        lavoro_t* prossimo = corrente->prossimo;
-        free(corrente);
-        corrente = prossimo;
+    job_t* current = q->head;
+    while (current) {
+        job_t* next = current->next;
+        free(current);
+        current = next;
     }
-    coda->testa = NULL;
-    coda->numero_elementi = 0;
+    q->head = NULL;
+    q->count = 0;
 
-    pthread_mutex_unlock(&coda->mutex);
-    pthread_mutex_destroy(&coda->mutex);
-    pthread_cond_destroy(&coda->cond_var);
+    pthread_mutex_unlock(&q->mtx);
+    pthread_mutex_destroy(&q->mtx);
+    pthread_cond_destroy(&q->cv);
 }
 
-void aggiungi_alla_coda(coda_t* coda, const char* path, const char* fifo_risposta, pid_t pid_client, off_t dimensione) {
-    lavoro_t* lavoro = malloc(sizeof(lavoro_t));
-    if (!lavoro) return;
+void jq_push(job_queue_t* q, const char* path, const char* resp_fifo, pid_t client_pid, off_t size) {
+    job_t* new_job = malloc(sizeof(job_t));
+    if (!new_job) return;
 
-    strncpy(lavoro->path, path, LUNGHEZZA_MAX_PATH - 1);
-    lavoro->path[LUNGHEZZA_MAX_PATH - 1] = '\0';
+    strncpy(new_job->path, path, MAX_PATH_LEN - 1);
+    new_job->path[MAX_PATH_LEN - 1] = '\0';
 
-    strncpy(lavoro->fifo_risposta, fifo_risposta, LUNGHEZZA_MAX_PATH - 1);
-    lavoro->fifo_risposta[LUNGHEZZA_MAX_PATH - 1] = '\0';
+    strncpy(new_job->resp_fifo, resp_fifo, MAX_PATH_LEN - 1);
+    new_job->resp_fifo[MAX_PATH_LEN - 1] = '\0';
 
-    lavoro->pid_client = pid_client;
-    lavoro->dimensione = dimensione;
-    lavoro->prossimo = NULL;
+    new_job->client_pid = client_pid;
+    new_job->size = size;
+    new_job->next = NULL;
 
-    pthread_mutex_lock(&coda->mutex);
+    pthread_mutex_lock(&q->mtx);
 
-    if (coda->coda_chiusa) {
-        free(lavoro);
-        pthread_mutex_unlock(&coda->mutex);
+    if (q->closed) {
+        free(new_job);
+        pthread_mutex_unlock(&q->mtx);
         return;
     }
 
-    lavoro_t** p = &coda->testa;
+    job_t** ptr = &q->head;
 
-    while (*p) {
+    while (*ptr) {
 
-        bool scorri_avanti = (coda->ordine == ORDINE_ASCENDENTE) ? (dimensione >= (*p)->dimensione) : (dimensione <= (*p)->dimensione);
-        if (!scorri_avanti) break;
-        p = &(*p)->prossimo;
+        bool continue_traversal = (q->order == ORDER_ASC) ? (size >= (*ptr)->size) : (size <= (*ptr)->size);
+        if (!continue_traversal) break;
+        ptr = &(*ptr)->next;
     }
-    lavoro->prossimo = *p;
-    *p = lavoro;
+    new_job->next = *ptr;
+    *ptr = new_job;
 
-    coda->numero_elementi++;
-    pthread_cond_signal(&coda->cond_var);
-    pthread_mutex_unlock(&coda->mutex);
+    q->count++;
+    pthread_cond_signal(&q->cv);
+    pthread_mutex_unlock(&q->mtx);
 }
 
-int estrai_dalla_coda(coda_t* coda, lavoro_t* lavoro) {
-    pthread_mutex_lock(&coda->mutex);
+int jq_pop(job_queue_t* q, job_t* out) {
+    pthread_mutex_lock(&q->mtx);
 
-    while (!coda->testa && !coda->coda_chiusa) {
-        pthread_cond_wait(&coda->cond_var, &coda->mutex);
+    while (!q->head && !q->closed) {
+        pthread_cond_wait(&q->cv, &q->mtx);
     }
 
-    if (coda->coda_chiusa && !coda->testa) {
-        pthread_mutex_unlock(&coda->mutex);
+    if (q->closed && !q->head) {
+        pthread_mutex_unlock(&q->mtx);
         return -1;
     }
 
-    lavoro_t* elemento = coda->testa;
-    coda->testa = elemento->prossimo;
-    coda->numero_elementi--;
+    job_t* job = q->head;
+    q->head = job->next;
+    q->count--;
 
-    *lavoro = *elemento;
-    free(elemento);
+    *out = *job;
+    free(job);
 
-    pthread_mutex_unlock(&coda->mutex);
+    pthread_mutex_unlock(&q->mtx);
     return 0;
 }
 
@@ -152,229 +157,229 @@ unsigned long path_hash(const char *s) {
     return h;
 }
 
-void elimina_cache(cache_t* cache) {
-    pthread_mutex_lock(&cache->mutex);
+void cache_destroy(cache_t* c) {
+    pthread_mutex_lock(&c->mtx);
 
-    for (size_t i = 0; i < cache->nbuckets; i++) {
-        elemento_cache_t* elemento = cache->buckets[i];
-        while (elemento) {
-            elemento_cache_t* prossimo = elemento->prossimo;
-            pthread_mutex_destroy(&elemento->mutex);
-            pthread_cond_destroy(&elemento->cond_var);
-            free(elemento);
-            elemento = prossimo;
+    for (size_t i = 0; i < c->nbuckets; i++) {
+        cache_entry_t* entry = c->buckets[i];
+        while (entry) {
+            cache_entry_t* next = entry->next;
+            pthread_mutex_destroy(&entry->mtx);
+            pthread_cond_destroy(&entry->cv);
+            free(entry);
+            entry = next;
         }
     }
 
-    free(cache->buckets);
-    pthread_mutex_unlock(&cache->mutex);
-    pthread_mutex_destroy(&cache->mutex);
+    free(c->buckets);
+    pthread_mutex_unlock(&c->mtx);
+    pthread_mutex_destroy(&c->mtx);
 }
 
-elemento_cache_t* ottieni_elemento_cache(cache_t* cache, const char* path) {
+cache_entry_t* cache_get_or_create(cache_t* c, const char* path) {
     unsigned long hash = path_hash(path);
-    size_t bucket = hash % cache->nbuckets;
+    size_t bucket = hash % c->nbuckets;
 
-    pthread_mutex_lock(&cache->mutex);
+    pthread_mutex_lock(&c->mtx);
 
-    elemento_cache_t* elemento = cache->buckets[bucket];
-    while (elemento && strcmp(elemento->path, path) != 0) {
-        elemento = elemento->prossimo;
+    cache_entry_t* entry = c->buckets[bucket];
+    while (entry && strcmp(entry->path, path) != 0) {
+        entry = entry->next;
     }
 
-    if (!elemento) {
-        elemento = malloc(sizeof(elemento_cache_t));
-        if (elemento) {
-            *elemento = (elemento_cache_t){.prossimo = cache->buckets[bucket]};
-            strncpy(elemento->path, path, LUNGHEZZA_MAX_PATH - 1);
-            elemento->path[LUNGHEZZA_MAX_PATH - 1] = '\0';
-            pthread_mutex_init(&elemento->mutex, NULL);
-            pthread_cond_init(&elemento->cond_var, NULL);
-            cache->buckets[bucket] = elemento;
+    if (!entry) {
+        entry = malloc(sizeof(cache_entry_t));
+        if (entry) {
+            *entry = (cache_entry_t){.next = c->buckets[bucket]};
+            strncpy(entry->path, path,  MAX_PATH_LEN - 1);
+            entry->path[MAX_PATH_LEN - 1] = '\0';
+            pthread_mutex_init(&entry->mtx, NULL);
+            pthread_cond_init(&entry->cv, NULL);
+            c->buckets[bucket] = entry;
         }
     }
 
-    pthread_mutex_unlock(&cache->mutex);
-    return elemento;
+    pthread_mutex_unlock(&c->mtx);
+    return entry;
 }
 
-bool controllo_cache(cache_t* cache, const char* path, off_t dimensione, time_t ultima_modifica_sec, long ultima_modifica_nsec, char* hash_file) {
-    elemento_cache_t* elemento = ottieni_elemento_cache(cache, path);
-    if (!elemento) {
-        pthread_mutex_lock(&cache->mutex);
-        cache->misses++;
-        pthread_mutex_unlock(&cache->mutex);
+bool cache_lookup(cache_t* c, const char* path, off_t size, time_t mtime_sec, long mtime_nsec, char* hash_out) {
+    cache_entry_t* entry = cache_get_or_create(c, path);
+    if (!entry) {
+        pthread_mutex_lock(&c->mtx);
+        c->misses++;
+        pthread_mutex_unlock(&c->mtx);
         return false;
     }
 
-    pthread_mutex_lock(&elemento->mutex);
+    pthread_mutex_lock(&entry->mtx);
     
 
-    if (elemento->hash_pronto && elemento->dimensione == dimensione &&
-        elemento->ultima_modifica_sec == ultima_modifica_sec && elemento->ultima_modifica_nsec == ultima_modifica_nsec) {
-        strcpy(hash_file, elemento->hash);
-        pthread_mutex_unlock(&elemento->mutex);
+    if (entry->ready && entry->sz == size &&
+        entry->mtime_sec == mtime_sec && entry->mtime_nsec == mtime_nsec) {
+        strcpy(hash_out, entry->hash);
+        pthread_mutex_unlock(&entry->mtx);
 
-        pthread_mutex_lock(&cache->mutex);
-        cache->hits++;
-        pthread_mutex_unlock(&cache->mutex);
+        pthread_mutex_lock(&c->mtx);
+        c->hits++;
+        pthread_mutex_unlock(&c->mtx);
         return true;
     }
     
 
-    if (elemento->hash_in_calcolo) {
-        elemento->thread_in_attesa++;
-        while (elemento->hash_in_calcolo) {
-            pthread_cond_wait(&elemento->cond_var, &elemento->mutex);
+    if (entry->computing) {
+        entry->waiters++;
+        while (entry->computing) {
+            pthread_cond_wait(&entry->cv, &entry->mtx);
         }
-        elemento->thread_in_attesa--;
+        entry->waiters--;
         
 
-        if (elemento->hash_pronto && elemento->dimensione == dimensione &&
-            elemento->ultima_modifica_sec == ultima_modifica_sec && elemento->ultima_modifica_nsec == ultima_modifica_nsec) {
-            strcpy(hash_file, elemento->hash);
-            pthread_mutex_unlock(&elemento->mutex);
+        if (entry->ready && entry->sz == size &&
+            entry->mtime_sec == mtime_sec && entry->mtime_nsec == mtime_nsec) {
+            strcpy(hash_out, entry->hash);
+            pthread_mutex_unlock(&entry->mtx);
 
-            pthread_mutex_lock(&cache->mutex);
-            cache->hits++;
-            pthread_mutex_unlock(&cache->mutex);
+            pthread_mutex_lock(&c->mtx);
+            c->hits++;
+            pthread_mutex_unlock(&c->mtx);
             return true;
         }
     }
     
 
-    if (!elemento->hash_in_calcolo) { elemento->hash_in_calcolo = true; }
+    if (!entry->computing) { entry->computing = true; }
 
-    pthread_mutex_unlock(&elemento->mutex);
-    pthread_mutex_lock(&cache->mutex);
-    cache->misses++;
-    pthread_mutex_unlock(&cache->mutex);
+    pthread_mutex_unlock(&entry->mtx);
+    pthread_mutex_lock(&c->mtx);
+    c->misses++;
+    pthread_mutex_unlock(&c->mtx);
     return false;
 }
 
-void salva_in_cache(cache_t* cache, const char* path, off_t dimensione, time_t ultima_modifica_sec, long ultima_modifica_nsec, const char* hash) {
-    elemento_cache_t* elemento = ottieni_elemento_cache(cache, path);
-    if (!elemento) return;
+void cache_store(cache_t* c, const char* path, off_t size, time_t mtime_sec, long mtime_nsec, const char* hash) {
+    cache_entry_t* entry = cache_get_or_create(c, path);
+    if (!entry) return;
 
-    pthread_mutex_lock(&elemento->mutex);
+    pthread_mutex_lock(&entry->mtx);
 
-    strcpy(elemento->hash, hash);
-    elemento->dimensione = dimensione;
-    elemento->ultima_modifica_sec = ultima_modifica_sec;
-    elemento->ultima_modifica_nsec = ultima_modifica_nsec;
-    elemento->hash_pronto = true;
-    elemento->hash_in_calcolo = false;
+    strcpy(entry->hash, hash);
+    entry->sz = size;
+    entry->mtime_sec = mtime_sec;
+    entry->mtime_nsec = mtime_nsec;
+    entry->ready = true;
+    entry->computing = false;
 
-    if (elemento->thread_in_attesa > 0) {
-        pthread_cond_broadcast(&elemento->cond_var);
+    if (entry->waiters > 0) {
+        pthread_cond_broadcast(&entry->cv);
     }
 
-    pthread_mutex_unlock(&elemento->mutex);
+    pthread_mutex_unlock(&entry->mtx);
 }
 
-void gestore_segnali(int sig) {
-    if (server_varglobale) {
+void signal_handler(int sig) {
+    if (g_server_ctx) {
         printf("\nReceived signal %d, shutting down server\n", sig);
-        server_varglobale->in_esecuzione = false;
-        pthread_mutex_lock(&server_varglobale->coda.mutex);
-        server_varglobale->coda.coda_chiusa = true;
-        pthread_cond_broadcast(&server_varglobale->coda.cond_var);
-        pthread_mutex_unlock(&server_varglobale->coda.mutex);
+        g_server_ctx->running = false;
+        pthread_mutex_lock(&g_server_ctx->job_queue.mtx);
+        g_server_ctx->job_queue.closed = true;
+        pthread_cond_broadcast(&g_server_ctx->job_queue.cv);
+        pthread_mutex_unlock(&g_server_ctx->job_queue.mtx);
     }
 }
 
-void* funzione_thread(void* arg) {
-    server_t* server = (server_t*)arg;
-    lavoro_t lavoro;
+void* worker_thread(void* arg) {
+    server_ctx_t* ctx = (server_ctx_t*)arg;
+    job_t job;
 
     printf("Worker thread started\n");
 
-    while (server->in_esecuzione) {
-        if (estrai_dalla_coda(&server->coda, &lavoro) == -1) { break; }
-        struct timespec inizio, fine;
-        clock_gettime(1, &inizio);
+    while (ctx->running) {
+        if (jq_pop(&ctx->job_queue, &job) == -1) { break; }
+        struct timespec start_time, end_time;
+        clock_gettime(CLOCK_MONOTONIC, &start_time);
         
-        off_t dimensione = dimensione_file(lavoro.path);
-        time_t ultima_modifica_sec;
-        long ultima_modifica_nsec;
+        off_t size = file_size(job.path);
+        time_t mtime_sec;
+        long mtime_nsec;
 
 
-        if (dimensione == -1 || ultima_modifica(lavoro.path, &ultima_modifica_sec, &ultima_modifica_nsec) == -1) {
-            messaggio_risposta_t risposta = { .tipo = ERRORE, .codice = errno };
-            snprintf(risposta.messaggio, sizeof(risposta.messaggio), "Cannot access file: %s", strerror(errno));
-            invia_risposta(lavoro.fifo_risposta, risposta);
+        if (size == -1 || get_file_mtime(job.path, &mtime_sec, &mtime_nsec) == -1) {
+            response_msg_t resp = { .type = RESP_ERROR, .error_code = errno };
+            snprintf(resp.error_msg, sizeof(resp.error_msg), "Cannot access file: %s", strerror(errno));
+            send_response(job.resp_fifo, resp);
             continue;
         }
 
-        char hash[LUNGHEZZA_HASH + 1];
+        char hash_result[HASH_HEX_LEN + 1];
 
-        bool cache_hit = controllo_cache(&server->cache, lavoro.path, dimensione, ultima_modifica_sec, ultima_modifica_nsec, hash);
+        bool cache_hit = cache_lookup(&ctx->cache, job.path, size, mtime_sec, mtime_nsec, hash_result);
 
         if (!cache_hit) {
-            if (sha256_file(lavoro.path, hash) == -1) {
-                    messaggio_risposta_t risposta = { .tipo = ERRORE, .codice = errno };
-                    snprintf(risposta.messaggio, sizeof(risposta.messaggio), "Cannot compute hash: %s", strerror(errno));
-                    invia_risposta(lavoro.fifo_risposta, risposta);
+            if (compute_sha256(job.path, hash_result) == -1) {
+                    response_msg_t resp = { .type = RESP_ERROR, .error_code = errno };
+                    snprintf(resp.error_msg, sizeof(resp.error_msg), "Cannot compute hash: %s", strerror(errno));
+                    send_response(job.resp_fifo, resp);
                     continue;
             }
 
-            salva_in_cache(&server->cache, lavoro.path, dimensione, ultima_modifica_sec, ultima_modifica_nsec, hash);
+            cache_store(&ctx->cache, job.path, size, mtime_sec, mtime_nsec, hash_result);
 
-            pthread_mutex_lock(&server->mutex_statistiche);
-            server->statistiche.file_processati++;
-            pthread_mutex_unlock(&server->mutex_statistiche);
+            pthread_mutex_lock(&ctx->stats_mtx);
+            ctx->stats.files_processed++;
+            pthread_mutex_unlock(&ctx->stats_mtx);
         }
 
-        messaggio_risposta_t risposta = { .tipo = RISPOSTA_HASH, .codice = 0, .messaggio = "" };
-        strcpy(risposta.hash, hash);
-        int fifo_risposta = invia_risposta(lavoro.fifo_risposta, risposta);
-        if (fifo_risposta == -1) printf("Warning: Cannot open response FIFO for client\n");
+        response_msg_t resp = { .type = RESP_HASH, .error_code = 0, .error_msg = "" };
+        strcpy(resp.hash, hash_result);
+        int resp_fd = send_response(job.resp_fifo, resp);
+        if (resp_fd == -1) printf("Warning: Cannot open response FIFO for client\n");
 
-        clock_gettime(1, &fine);
-        double tempo_processamento = differenza(inizio, fine);
+        clock_gettime(CLOCK_MONOTONIC, &end_time);
+        double processing_time = get_time_diff(start_time, end_time);
 
-        pthread_mutex_lock(&server->mutex_statistiche);
-        server->statistiche.richieste_totali++;
+        pthread_mutex_lock(&ctx->stats_mtx);
+        ctx->stats.total_requests++;
         if (cache_hit) {
-            server->statistiche.cache_hits++;
+            ctx->stats.cache_hits++;
         } else {
-            server->statistiche.cache_misses++;
+            ctx->stats.cache_misses++;
         }
 
 
-        double tempo_totale = server->statistiche.media_tempo_processamento * (server->statistiche.richieste_totali - 1);
-        server->statistiche.media_tempo_processamento = (tempo_totale + tempo_processamento) / server->statistiche.richieste_totali;
+        double total_time = ctx->stats.avg_processing_time * (ctx->stats.total_requests - 1);
+        ctx->stats.avg_processing_time = (total_time + processing_time) / ctx->stats.total_requests;
 
-        pthread_mutex_unlock(&server->mutex_statistiche);
+        pthread_mutex_unlock(&ctx->stats_mtx);
 
         printf("Processed file: %s (%.3f ms, %s)\n",
-               lavoro.path, tempo_processamento * 1000, cache_hit ? "cache hit" : "computed");
+               job.path, processing_time * 1000, cache_hit ? "cache hit" : "computed");
     }
 
     printf("Worker thread terminated\n");
     return NULL;
 }
 
-int inizializza_server(server_t* server, int numero_thread, int ordine) {
+int server_init(server_ctx_t* ctx, int num_workers, int order) {
+    
+    ctx->job_queue = (job_queue_t){ .head=NULL, .closed=false, .order=order, .count=0 };
+    pthread_cond_init(&ctx->job_queue.cv, NULL);
+    pthread_mutex_init(&ctx->job_queue.mtx, NULL);
 
-    server->coda = (coda_t){ .testa=NULL, .coda_chiusa=false, .ordine=ordine, .numero_elementi=0 };
-    pthread_cond_init(&server->coda.cond_var, NULL);
-    pthread_mutex_init(&server->coda.mutex, NULL);
+    ctx->cache = (cache_t){ .buckets = calloc(HASH_BUCKET_SIZE, sizeof(cache_entry_t*)), .nbuckets = HASH_BUCKET_SIZE };
+    pthread_mutex_init(&ctx->cache.mtx, NULL);
 
-    server->cache = (cache_t){ .buckets = calloc(DIMENSIONE_HASH_BUCKET, sizeof(elemento_cache_t*)), .nbuckets = DIMENSIONE_HASH_BUCKET };
-    pthread_mutex_init(&server->cache.mutex, NULL);
+    memset(&ctx->stats, 0, sizeof(stats_t));
+    pthread_mutex_init(&ctx->stats_mtx, NULL);
 
-    memset(&server->statistiche, 0, sizeof(statistiche_t));
-    pthread_mutex_init(&server->mutex_statistiche, NULL);
+    ctx->num_workers = num_workers;
+    ctx->running = true;
 
-    server->numero_thread = numero_thread;
-    server->in_esecuzione = true;
+    for (int i = 0; i < num_workers; i++) {
+        ctx->workers[i].id = i;
+        ctx->workers[i].active = true;
 
-    for (int i = 0; i < numero_thread; i++) {
-        server->threads[i].id = i;
-        server->threads[i].attivo = true;
-
-        if (pthread_create(&server->threads[i].thread, NULL, funzione_thread, server) != 0) {
+        if (pthread_create(&ctx->workers[i].thread, NULL, worker_thread, ctx) != 0) {
             perror("pthread_create");
             return -1;
         }
@@ -383,88 +388,88 @@ int inizializza_server(server_t* server, int numero_thread, int ordine) {
     return 0;
 }
 
-void chiudi_server(server_t* server) {
-    server->in_esecuzione = false;
+void server_destroy(server_ctx_t* ctx) {
+    ctx->running = false;
+    
+    pthread_mutex_lock(&ctx->job_queue.mtx);
+    ctx->job_queue.closed = true;
+    pthread_cond_broadcast(&ctx->job_queue.cv);
+    pthread_mutex_unlock(&ctx->job_queue.mtx);
 
-    pthread_mutex_lock(&server->coda.mutex);
-    server->coda.coda_chiusa = true;
-    pthread_cond_broadcast(&server->coda.cond_var);
-    pthread_mutex_unlock(&server->coda.mutex);
-
-    for (int i = 0; i < server->numero_thread; i++) {
-        if (server->threads[i].attivo) {
-            pthread_join(server->threads[i].thread, NULL);
-            server->threads[i].attivo = false;
+    for (int i = 0; i < ctx->num_workers; i++) {
+        if (ctx->workers[i].active) {
+            pthread_join(ctx->workers[i].thread, NULL);
+            ctx->workers[i].active = false;
         }
     }
 
-    elimina_coda(&server->coda);
-    elimina_cache(&server->cache);
-    pthread_mutex_destroy(&server->mutex_statistiche);
+    jq_destroy(&ctx->job_queue);
+    cache_destroy(&ctx->cache);
+    pthread_mutex_destroy(&ctx->stats_mtx);
 }
 
-int esegui_server(server_t* server) {
-    int fifo_richiesta;
-    messaggio_richiesta_t richiesta;
+int server_run(server_ctx_t* ctx) {
+    int req_fd;
+    request_msg_t req;
     
 
-    if (crea_fifo(PATH_FIFO_RICHIESTA, 0666) == -1) { return -1; } 
+    if (ensure_fifo(REQUEST_FIFO_PATH, 0666) == -1) { return -1; } 
     
-    while (server->in_esecuzione) {
-        fifo_richiesta = apri_fifo_lettura(PATH_FIFO_RICHIESTA);
-        if (fifo_richiesta == -1) {
+    while (ctx->running) {
+        req_fd = open_fifo_read(REQUEST_FIFO_PATH);
+        if (req_fd == -1) {
             if (errno == EINTR) continue;
             perror("open request FIFO");
             break;
         }
 
-        while (server->in_esecuzione) {
-            if (leggi_da_fifo(fifo_richiesta, &richiesta, sizeof(richiesta)) == -1) { break; }
+        while (ctx->running) {
+            if (read_exact(req_fd, &req, sizeof(req)) == -1) { break; }
             
-            switch (richiesta.tipo) {
-                case RICHIESTA_HASH: {
-                    if (!(access(richiesta.path, F_OK) == 0)) {
-                            messaggio_risposta_t risposta = { .tipo = ERRORE, .codice = ENOENT, .messaggio = "File not found" };
-                            invia_risposta(richiesta.fifo_risposta, risposta);
+            switch (req.type) {
+                case REQ_HASH_FILE: {
+                    if (!file_exists(req.path)) {
+                            response_msg_t resp = { .type = RESP_ERROR, .error_code = ENOENT, .error_msg = "File not found" };
+                            send_response(req.resp_fifo, resp);
                             break;
                     }
-                    off_t dimensione = dimensione_file(richiesta.path);
-                    if (dimensione == -1) {
-                        messaggio_risposta_t risposta = { .tipo = ERRORE, .codice = errno };
-                        snprintf(risposta.messaggio, sizeof(risposta.messaggio), "%s", strerror(errno));
-                        invia_risposta(richiesta.fifo_risposta, risposta);
+                    off_t size = file_size(req.path);
+                    if (size == -1) {
+                        response_msg_t resp = { .type = RESP_ERROR, .error_code = errno };
+                        snprintf(resp.error_msg, sizeof(resp.error_msg), "%s", strerror(errno));
+                        send_response(req.resp_fifo, resp);
                         break;
                     }
-                    printf("Received hash request for: %s (size: %lld bytes)\n", richiesta.path, (long long)dimensione);
-                    aggiungi_alla_coda(&server->coda, richiesta.path, richiesta.fifo_risposta, richiesta.pid_client, dimensione);
+                    printf("Received hash request for: %s (size: %lld bytes)\n", req.path, (long long)size);
+                    jq_push(&ctx->job_queue, req.path, req.resp_fifo, req.client_pid, size);
                     break;
                 }
-                case RICHIESTA_STATISTICHE: {
-                    messaggio_risposta_t risposta = { .tipo = RISPOSTA_STATISTICHE, .codice = 0 };
+                case REQ_STATS: {
+                    response_msg_t resp = { .type = RESP_STATS, .error_code = 0 };
 
-                    pthread_mutex_lock(&server->mutex_statistiche);
-                    pthread_mutex_lock(&server->cache.mutex);
-                    server->statistiche.cache_hits = server->cache.hits;
-                    server->statistiche.cache_misses = server->cache.misses;
-                    pthread_mutex_unlock(&server->cache.mutex);
+                    pthread_mutex_lock(&ctx->stats_mtx);
+                    pthread_mutex_lock(&ctx->cache.mtx);
+                    ctx->stats.cache_hits = ctx->cache.hits;
+                    ctx->stats.cache_misses = ctx->cache.misses;
+                    pthread_mutex_unlock(&ctx->cache.mtx);
 
-                    risposta.statistiche = server->statistiche;
-                    pthread_mutex_unlock(&server->mutex_statistiche);
+                    resp.stats = ctx->stats;
+                    pthread_mutex_unlock(&ctx->stats_mtx);
 
-                    invia_risposta(richiesta.fifo_risposta, risposta);
+                    send_response(req.resp_fifo, resp);
                     break;
                 }
-                case CHIUSURA:
+                case REQ_TERMINATE:
                     printf("Received termination request\n");
-                    server->in_esecuzione = false;
+                    ctx->running = false;
                     break;
                 default:
-                    fprintf(stderr, "Unknown request type: %d\n", richiesta.tipo);
+                    fprintf(stderr, "Unknown request type: %d\n", req.type);
                     break;
             }
         }
 
-        close(fifo_richiesta);
+        close(req_fd);
     }
 
     return 0;

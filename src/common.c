@@ -7,55 +7,51 @@
 #include <errno.h>
 #include <sys/stat.h>
 
-int crea_fifo(const char* path, mode_t permessi) {
-    if (mkfifo(path, permessi) == 0) return 0;
+int ensure_fifo(const char* path, mode_t mode) {
+    if (mkfifo(path, mode) == 0) return 0;
     if (errno != EEXIST) { perror("mkfifo"); return -1; }
-    struct stat stat_file;
+    struct stat st;
 
-    if (stat(path, &stat_file) == 0 && S_ISFIFO(stat_file.st_mode)) { return 0; }
+    if (stat(path, &st) == 0 && S_ISFIFO(st.st_mode)) { return 0; }
     fprintf(stderr, "Errore: '%s' esiste e non è una FIFO.\n", path);
     return -1;
 }
 
-int apri_fifo_lettura(const char* path) {
+int open_fifo_read(const char* path) {
     int fd = open(path, O_RDONLY);
     if (fd == -1) { perror("open fifo read"); }
     return fd;
 }
 
-int apri_fifo_scrittura(const char* path) {
-    int fd = open(path, O_WRONLY | O_NONBLOCK);
-    if (fd == -1) {
-        if (errno != ENXIO) {
-            perror("open fifo write"); 
-        }
-    }
+int open_fifo_write(const char* path) {
+    int fd = open(path, O_WRONLY);
+    if (fd == -1) { perror("open fifo write"); }
     return fd;
 }
 
-int invia_risposta(const char* fifo, messaggio_risposta_t risposta) {
-    int fd = apri_fifo_scrittura(fifo);
+int send_response(const char* fifo, response_msg_t resp) {
+    int fd = open_fifo_write(fifo);
     if (fd == -1) return -1;
 
-    if (scrivi_su(fd, &risposta, sizeof(risposta)) == -1) { printf("Warning: Failed to send response to %s\n", fifo); } 
+    if (write_exact(fd, &resp, sizeof(resp)) == -1) { printf("Warning: Failed to send response to %s\n", fifo); } 
     close(fd);
     return fd;
 }
 
-int invia_richiesta(const char* fifo, messaggio_richiesta_t req) {
-    int fd = apri_fifo_scrittura(fifo);
+int send_request(const char* server_fifo, request_msg_t req) {
+    int fd = open_fifo_write(server_fifo);
     if (fd == -1) return -1;
 
-    if (scrivi_su(fd, &req, sizeof(req)) == -1) { printf("Warning: Failed to send request to %s\n", fifo); }
+    if (write_exact(fd, &req, sizeof(req)) == -1) { printf("Warning: Failed to send request to %s\n", server_fifo); }
     close(fd);
     return fd;
 }
 
-int leggi_risposta(const char* fifo, messaggio_risposta_t* risposta) {
-    int fd = apri_fifo_lettura(fifo);
+int read_response(const char* fifo, response_msg_t* resp) {
+    int fd = open_fifo_read(fifo);
     if (fd == -1) return -1;
     
-    if (leggi_da_fifo(fd, risposta, sizeof(*risposta)) == -1) {
+    if (read_exact(fd, resp, sizeof(*resp)) == -1) {
         close(fd);
         return -1;
     }
@@ -64,7 +60,7 @@ int leggi_risposta(const char* fifo, messaggio_risposta_t* risposta) {
     return 0;
 }
 
-int leggi_da_fifo(int fd, void* buf, size_t n) {
+int read_exact(int fd, void* buf, size_t n) {
     char* p = (char*)buf;
     size_t remaining = n;
 
@@ -82,7 +78,7 @@ int leggi_da_fifo(int fd, void* buf, size_t n) {
     return 0;
 }
 
-int scrivi_su(int fd, const void* buf, size_t n) {
+int write_exact(int fd, const void* buf, size_t n) {
     const char* p = (const char*)buf;
     size_t remaining = n;
 
@@ -100,13 +96,13 @@ int scrivi_su(int fd, const void* buf, size_t n) {
     return 0;
 }
 
-double differenza(struct timespec start, struct timespec end) {
+double get_time_diff(struct timespec start, struct timespec end) {
 
     double result = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9 ; 
     return result;
 }
 
-void stampa_menu(const char* progname) {
+void print_usage(const char* progname) {
     printf("Usage: %s [OPTIONS]\n", progname);
     printf("Options:\n");
     printf("  -h, --help              Show this help message\n");

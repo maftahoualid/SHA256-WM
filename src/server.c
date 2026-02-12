@@ -6,16 +6,16 @@
 #include <signal.h>
 #include <getopt.h>
 
-server_t* server_varglobale = NULL;
+server_ctx_t* g_server_ctx = NULL;
 
 int main(int argc, char* argv[]) {
 
-    signal(SIGINT, gestore_segnali);
-    signal(SIGTERM, gestore_segnali);
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
     signal(SIGPIPE, SIG_IGN);
 
-    int numero_thread = NUMERO_DEFAULT_THREAD;
-    int ordine_coda = ORDINE_ASCENDENTE;
+    int num_workers = DEFAULT_WORKERS;
+    int order = ORDER_ASC;
     int opt;
 
     static struct option long_options[] = {
@@ -25,50 +25,51 @@ int main(int argc, char* argv[]) {
         {0,         0,                 0,  0 }
     };
 
+
     while ((opt = getopt_long(argc, argv, "w:o:h", long_options, NULL)) != -1) {
         switch (opt) {
             case 'w':
-                numero_thread = atoi(optarg);
+                num_workers = atoi(optarg);
 
-                if (numero_thread <= 0 || numero_thread > NUMERO_MAX_THREAD) {
-                    fprintf(stderr, "Errore: workers deve essere tra 1 e %d\n", NUMERO_MAX_THREAD);
+                if (num_workers <= 0 || num_workers > MAX_THREADS) {
+                    fprintf(stderr, "Errore: workers deve essere tra 1 e %d\n", MAX_THREADS);
                     return 1;
                 }
                 break;
             case 'o':
                 if (strcmp(optarg, "asc") == 0) {
-                    ordine_coda = ORDINE_ASCENDENTE;
+                    order = ORDER_ASC;
                 } else if (strcmp(optarg, "desc") == 0) {
-                    ordine_coda = ORDER_DISCENDENTE;
+                    order = ORDER_DESC;
                 } else {
                     fprintf(stderr, "Errore: order deve essere 'asc' o 'desc'\n");
                     return 1;
                 }
                 break;
             case 'h':
-                stampa_menu(argv[0]);
+                print_usage(argv[0]);
                 return 0;
             case '?':
-                stampa_menu(argv[0]);
+                print_usage(argv[0]);
                 return 1;
             default:
                 abort();
         }
     }
 
-    server_t server;
-    server_varglobale = &server;
+    server_ctx_t ctx;
+    g_server_ctx = &ctx;
 
 
-    if (inizializza_server(&server, numero_thread, ordine_coda) == -1) { 
+    if (server_init(&ctx, num_workers, order) == -1) { 
         fprintf(stderr, "Failed to initialize server\n");
         return 1;
     }
     
 
-    int result = esegui_server(&server);
+    int result = server_run(&ctx);
 
-    chiudi_server(&server);
-    unlink(PATH_FIFO_RICHIESTA);
+    server_destroy(&ctx);
+    unlink(REQUEST_FIFO_PATH);
     return result;
 }

@@ -3,38 +3,48 @@
 
 #include "server_structs.h"
 
-extern server_t* server_varglobale;
+extern server_ctx_t* g_server_ctx;
 
-off_t dimensione_file(const char* path);
+off_t file_size(const char* path);
 
-int ultima_modifica(const char* path, time_t* sec, long* nsec);
+int get_file_mtime(const char* path, time_t* sec, long* nsec);
 
-int sha256_file(const char* filepath, char* hash_hex);
+bool file_exists(const char* path);
 
-void elimina_coda(coda_t* q);
+int compute_sha256(const char* filepath, char* hash_hex);
 
-void aggiungi_alla_coda(coda_t* q, const char* path, const char* fifo_risposta, pid_t pid_client, off_t dimensione);
+void jq_init(job_queue_t* q, int order);
 
-int estrai_dalla_coda(coda_t* q, lavoro_t* out);
+void jq_destroy(job_queue_t* q);
 
-void elimina_cache(cache_t* c);
+void jq_close(job_queue_t* q);
 
-elemento_cache_t* ottieni_elemento_cache(cache_t* c, const char* path);
+void jq_push(job_queue_t* q, const char* path, const char* resp_fifo, pid_t client_pid, off_t size);
 
-bool controllo_cache(cache_t* c, const char* path, off_t dimensione, time_t ultima_modifica_sec, long ultima_modifica_nsec, char* hash_out);
+int jq_pop(job_queue_t* q, job_t* out);
 
-void salva_in_cache(cache_t* c, const char* path, off_t dimensione, time_t ultima_modifica_sec, long ultima_modifica_nsec, const char* hash);
+unsigned long djb2_hash(const char* s);
 
-void gestore_segnali(int sig);
+void cache_init(cache_t* c, size_t nbuckets);
 
-void* funzione_thread(void* arg);
+void cache_destroy(cache_t* c);
 
-int inizializza_server(server_t* ctx, int numero_thread, int ordine);
+cache_entry_t* cache_get_or_create(cache_t* c, const char* path);
 
-void chiudi_server(server_t* ctx);
+bool cache_lookup(cache_t* c, const char* path, off_t size, time_t mtime_sec, long mtime_nsec, char* hash_out);
 
-int esegui_server(server_t* ctx);
+void cache_store(cache_t* c, const char* path, off_t size, time_t mtime_sec, long mtime_nsec, const char* hash);
 
-void stampa_statistiche(const statistiche_t* statistiche);
+void signal_handler(int sig);
+
+void* worker_thread(void* arg);
+
+int server_init(server_ctx_t* ctx, int num_workers, int order);
+
+void server_destroy(server_ctx_t* ctx);
+
+int server_run(server_ctx_t* ctx);
+
+void print_stats(const stats_t* stats);
 
 #endif
