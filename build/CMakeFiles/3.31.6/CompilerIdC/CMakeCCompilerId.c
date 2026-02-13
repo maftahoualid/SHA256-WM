@@ -6,7 +6,7 @@
 # define ID_VOID_MAIN
 #endif
 #if defined(__CLASSIC_C__)
-/* cond_var-qualifiers did not exist in K&R C */
+/* cv-qualifiers did not exist in K&R C */
 # define const
 # define volatile
 #endif

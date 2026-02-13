@@ -4,7 +4,7 @@
 # compile C with /usr/bin/cc
 C_DEFINES = 
 
-C_INCLUDES = -I/home/wally/Documenti/GitHub/SHA256-WM/include
+C_INCLUDES = -I/home/wally/Documenti/GitHub/SHA256-WM/include -I/home/wally/Documenti/GitHub/SHA256-WM/src
 
-C_FLAGS = -Wall -Wextra -pthread -D_POSIX_C_SOURCE=200809L -O2 -DNDEBUG -std=gnu99
+C_FLAGS = -O2 -DNDEBUG -std=gnu99 -Wall -Wextra -pthread -D_POSIX_C_SOURCE=200809L
 

@@ -1,12 +1,6 @@
 /home/wally/Documenti/GitHub/SHA256-WM/build/CMakeFiles/server.dir
 /home/wally/Documenti/GitHub/SHA256-WM/build/CMakeFiles/client.dir
 /home/wally/Documenti/GitHub/SHA256-WM/build/CMakeFiles/docs.dir
-/home/wally/Documenti/GitHub/SHA256-WM/build/CMakeFiles/run_tests.dir
 /home/wally/Documenti/GitHub/SHA256-WM/build/CMakeFiles/clean_all.dir
-/home/wally/Documenti/GitHub/SHA256-WM/build/CMakeFiles/test.dir
 /home/wally/Documenti/GitHub/SHA256-WM/build/CMakeFiles/edit_cache.dir
 /home/wally/Documenti/GitHub/SHA256-WM/build/CMakeFiles/rebuild_cache.dir
-/home/wally/Documenti/GitHub/SHA256-WM/build/CMakeFiles/list_install_components.dir
-/home/wally/Documenti/GitHub/SHA256-WM/build/CMakeFiles/install.dir
-/home/wally/Documenti/GitHub/SHA256-WM/build/CMakeFiles/install/local.dir
-/home/wally/Documenti/GitHub/SHA256-WM/build/CMakeFiles/install/strip.dir

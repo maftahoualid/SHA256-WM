@@ -11,6 +11,7 @@ CMakeFiles/server.dir/src/common.c.o: /home/wally/Documenti/GitHub/SHA256-WM/src
   /usr/include/features.h \
   /usr/include/linux/errno.h \
   /usr/include/stdc-predef.h \
+  /usr/include/stdint.h \
   /usr/include/stdio.h \
   /usr/include/stdlib.h \
   /usr/include/string.h \
@@ -37,6 +38,8 @@ CMakeFiles/server.dir/src/common.c.o: /home/wally/Documenti/GitHub/SHA256-WM/src
   /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h \
   /usr/include/x86_64-linux-gnu/bits/stat.h \
   /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+  /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+  /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
   /usr/include/x86_64-linux-gnu/bits/stdio.h \
   /usr/include/x86_64-linux-gnu/bits/stdio2-decl.h \
   /usr/include/x86_64-linux-gnu/bits/stdio2.h \
@@ -74,6 +77,7 @@ CMakeFiles/server.dir/src/common.c.o: /home/wally/Documenti/GitHub/SHA256-WM/src
   /usr/include/x86_64-linux-gnu/bits/unistd_ext.h \
   /usr/include/x86_64-linux-gnu/bits/waitflags.h \
   /usr/include/x86_64-linux-gnu/bits/waitstatus.h \
+  /usr/include/x86_64-linux-gnu/bits/wchar.h \
   /usr/include/x86_64-linux-gnu/bits/wordsize.h \
   /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
   /usr/include/x86_64-linux-gnu/gnu/stubs.h \
@@ -82,7 +86,8 @@ CMakeFiles/server.dir/src/common.c.o: /home/wally/Documenti/GitHub/SHA256-WM/src
   /usr/include/x86_64-linux-gnu/sys/types.h \
   /usr/lib/gcc/x86_64-linux-gnu/15/include/stdarg.h \
   /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
-  /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h
+  /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+  /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h
 
 CMakeFiles/server.dir/src/server.c.o: /home/wally/Documenti/GitHub/SHA256-WM/src/server.c \
   /home/wally/Documenti/GitHub/SHA256-WM/include/common.h \
@@ -95,6 +100,7 @@ CMakeFiles/server.dir/src/server.c.o: /home/wally/Documenti/GitHub/SHA256-WM/src
   /usr/include/sched.h \
   /usr/include/signal.h \
   /usr/include/stdc-predef.h \
+  /usr/include/stdint.h \
   /usr/include/stdio.h \
   /usr/include/stdlib.h \
   /usr/include/string.h \
@@ -127,6 +133,8 @@ CMakeFiles/server.dir/src/server.c.o: /home/wally/Documenti/GitHub/SHA256-WM/src
   /usr/include/x86_64-linux-gnu/bits/signum-generic.h \
   /usr/include/x86_64-linux-gnu/bits/sigthread.h \
   /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+  /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+  /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
   /usr/include/x86_64-linux-gnu/bits/stdio.h \
   /usr/include/x86_64-linux-gnu/bits/stdio2-decl.h \
   /usr/include/x86_64-linux-gnu/bits/stdio2.h \
@@ -172,6 +180,7 @@ CMakeFiles/server.dir/src/server.c.o: /home/wally/Documenti/GitHub/SHA256-WM/src
   /usr/include/x86_64-linux-gnu/bits/unistd_ext.h \
   /usr/include/x86_64-linux-gnu/bits/waitflags.h \
   /usr/include/x86_64-linux-gnu/bits/waitstatus.h \
+  /usr/include/x86_64-linux-gnu/bits/wchar.h \
   /usr/include/x86_64-linux-gnu/bits/wordsize.h \
   /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
   /usr/include/x86_64-linux-gnu/gnu/stubs.h \
@@ -180,7 +189,8 @@ CMakeFiles/server.dir/src/server.c.o: /home/wally/Documenti/GitHub/SHA256-WM/src
   /usr/include/x86_64-linux-gnu/sys/ucontext.h \
   /usr/lib/gcc/x86_64-linux-gnu/15/include/stdarg.h \
   /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
-  /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h
+  /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+  /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h
 
 CMakeFiles/server.dir/src/server_utils.c.o: /home/wally/Documenti/GitHub/SHA256-WM/src/server_utils.c \
   /home/wally/Documenti/GitHub/SHA256-WM/include/common.h \
@@ -286,16 +296,6 @@ CMakeFiles/server.dir/src/server_utils.c.o: /home/wally/Documenti/GitHub/SHA256-
 
 /usr/include/x86_64-linux-gnu/openssl/opensslconf.h:
 
-/usr/include/x86_64-linux-gnu/bits/wchar.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdint-uintn.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdint-least.h:
-
-/usr/include/stdint.h:
-
-/usr/include/openssl/macros.h:
-
 /usr/include/x86_64-linux-gnu/openssl/configuration.h:
 
 /usr/include/openssl/e_os2.h:
@@ -309,10 +309,6 @@ CMakeFiles/server.dir/src/server_utils.c.o: /home/wally/Documenti/GitHub/SHA256-
 /usr/include/x86_64-linux-gnu/bits/signal_ext.h:
 
 /usr/include/x86_64-linux-gnu/bits/siginfo-consts.h:
-
-/usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h:
-
-/usr/include/x86_64-linux-gnu/bits/siginfo-arch.h:
 
 /usr/include/x86_64-linux-gnu/bits/sigaction.h:
 
@@ -329,6 +325,10 @@ CMakeFiles/server.dir/src/server_utils.c.o: /home/wally/Documenti/GitHub/SHA256-
 /home/wally/Documenti/GitHub/SHA256-WM/include/server_structs.h:
 
 /home/wally/Documenti/GitHub/SHA256-WM/src/server.c:
+
+/usr/include/x86_64-linux-gnu/bits/siginfo-arch.h:
+
+/usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h:
 
 /usr/include/x86_64-linux-gnu/bits/cpu-set.h:
 
@@ -347,6 +347,8 @@ CMakeFiles/server.dir/src/server_utils.c.o: /home/wally/Documenti/GitHub/SHA256-
 /usr/include/x86_64-linux-gnu/gnu/stubs.h:
 
 /usr/include/x86_64-linux-gnu/bits/wordsize.h:
+
+/usr/include/x86_64-linux-gnu/bits/wchar.h:
 
 /usr/include/x86_64-linux-gnu/bits/waitstatus.h:
 
@@ -380,6 +382,8 @@ CMakeFiles/server.dir/src/server_utils.c.o: /home/wally/Documenti/GitHub/SHA256-
 
 /usr/include/x86_64-linux-gnu/bits/types/clockid_t.h:
 
+/usr/include/x86_64-linux-gnu/bits/types/__mbstate_t.h:
+
 /usr/include/x86_64-linux-gnu/bits/floatn.h:
 
 /usr/include/x86_64-linux-gnu/bits/fcntl2.h:
@@ -404,6 +408,12 @@ CMakeFiles/server.dir/src/server_utils.c.o: /home/wally/Documenti/GitHub/SHA256-
 
 /usr/include/fcntl.h:
 
+/usr/include/x86_64-linux-gnu/bits/endian.h:
+
+/usr/include/string.h:
+
+/usr/include/x86_64-linux-gnu/bits/stdint-uintn.h:
+
 /usr/include/openssl/opensslv.h:
 
 /usr/include/x86_64-linux-gnu/asm/errno.h:
@@ -426,7 +436,11 @@ CMakeFiles/server.dir/src/server_utils.c.o: /home/wally/Documenti/GitHub/SHA256-
 
 /usr/include/x86_64-linux-gnu/bits/floatn-common.h:
 
-/usr/include/features-time64.h:
+/usr/include/x86_64-linux-gnu/bits/types/__locale_t.h:
+
+/usr/include/x86_64-linux-gnu/bits/getopt_posix.h:
+
+/usr/include/stdio.h:
 
 /usr/include/stdlib.h:
 
@@ -446,11 +460,15 @@ CMakeFiles/server.dir/src/server_utils.c.o: /home/wally/Documenti/GitHub/SHA256-
 
 /home/wally/Documenti/GitHub/SHA256-WM/include/common.h:
 
-/usr/include/x86_64-linux-gnu/bits/endian.h:
+/usr/include/features-time64.h:
 
-/usr/include/string.h:
+/usr/include/openssl/macros.h:
 
-/usr/include/x86_64-linux-gnu/bits/types/__mbstate_t.h:
+/usr/include/stdint.h:
+
+/usr/include/x86_64-linux-gnu/bits/getopt_core.h:
+
+/usr/include/x86_64-linux-gnu/bits/timesize.h:
 
 /usr/include/x86_64-linux-gnu/bits/libc-header-start.h:
 
@@ -488,17 +506,19 @@ CMakeFiles/server.dir/src/server_utils.c.o: /home/wally/Documenti/GitHub/SHA256-
 
 /usr/include/x86_64-linux-gnu/bits/types/__FILE.h:
 
-/usr/include/x86_64-linux-gnu/bits/types/struct_tm.h:
-
-/usr/include/x86_64-linux-gnu/bits/types/FILE.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdio.h:
+/usr/include/x86_64-linux-gnu/bits/stdint-least.h:
 
 /usr/include/x86_64-linux-gnu/bits/types/__sigval_t.h:
 
 /usr/include/x86_64-linux-gnu/bits/stdio2-decl.h:
 
 /usr/include/x86_64-linux-gnu/bits/time.h:
+
+/usr/include/x86_64-linux-gnu/bits/types/struct_tm.h:
+
+/usr/include/x86_64-linux-gnu/bits/types/FILE.h:
+
+/usr/include/x86_64-linux-gnu/bits/stdio.h:
 
 /usr/include/x86_64-linux-gnu/bits/stdlib-float.h:
 
@@ -509,12 +529,6 @@ CMakeFiles/server.dir/src/server_utils.c.o: /home/wally/Documenti/GitHub/SHA256-
 /usr/include/x86_64-linux-gnu/bits/types/struct_timespec.h:
 
 /usr/include/x86_64-linux-gnu/bits/types/__fpos64_t.h:
-
-/usr/include/x86_64-linux-gnu/bits/getopt_posix.h:
-
-/usr/include/stdio.h:
-
-/usr/include/x86_64-linux-gnu/bits/types/__locale_t.h:
 
 /usr/include/x86_64-linux-gnu/bits/struct_rwlock.h:
 
@@ -527,7 +541,3 @@ CMakeFiles/server.dir/src/server_utils.c.o: /home/wally/Documenti/GitHub/SHA256-
 /usr/include/x86_64-linux-gnu/bits/time64.h:
 
 /usr/include/x86_64-linux-gnu/bits/types/__fpos_t.h:
-
-/usr/include/x86_64-linux-gnu/bits/getopt_core.h:
-
-/usr/include/x86_64-linux-gnu/bits/timesize.h:

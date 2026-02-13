@@ -1,1 +1,1 @@
-/usr/bin/cc -Wall -Wextra -pthread -D_POSIX_C_SOURCE=200809L -O2 -DNDEBUG CMakeFiles/client.dir/src/client.c.o CMakeFiles/client.dir/src/common.c.o -o /home/wally/Documenti/GitHub/SHA256-WM/bin/client
+/usr/bin/cc -O2 -DNDEBUG CMakeFiles/client.dir/src/client.c.o CMakeFiles/client.dir/src/common.c.o -o /home/wally/Documenti/GitHub/SHA256-WM/bin/client

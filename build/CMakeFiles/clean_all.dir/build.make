@@ -67,11 +67,12 @@ include CMakeFiles/clean_all.dir/compiler_depend.make
 include CMakeFiles/clean_all.dir/progress.make
 
 CMakeFiles/clean_all:
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/wally/Documenti/GitHub/SHA256-WM/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Pulisce tutti i file generati"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/wally/Documenti/GitHub/SHA256-WM/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Pulisce binari, build, log latex e FIFO temporanee"
 	/usr/bin/cmake -E echo ===\ Pulizia\ completa\ ===
 	/usr/bin/cmake -E remove_directory /home/wally/Documenti/GitHub/SHA256-WM/bin
-	bash -c cd\ /home/wally/Documenti/GitHub/SHA256-WM/doc\ &&\ rm\ -f\ *.aux\ *.log\ *.out\ *.toc\ *.fdb_latexmk\ *.fls\ *.synctex.gz
-	bash -c cd\ /home/wally/Documenti/GitHub/SHA256-WM\ &&\ rm\ -f\ final.txt\ test.txt\ &&\ rm\ -f\ /tmp/hash_server_*
+	/usr/bin/cmake -E remove_directory /home/wally/Documenti/GitHub/SHA256-WM/build
+	bash -c rm\ -f\ /home/wally/Documenti/GitHub/SHA256-WM/doc/*.aux\ /home/wally/Documenti/GitHub/SHA256-WM/doc/*.log\ /home/wally/Documenti/GitHub/SHA256-WM/doc/*.out\ /home/wally/Documenti/GitHub/SHA256-WM/doc/*.toc
+	bash -c rm\ -f\ /tmp/hash_server\ /tmp/hash_client_*
 
 CMakeFiles/clean_all.dir/codegen:
 .PHONY : CMakeFiles/clean_all.dir/codegen
