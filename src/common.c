@@ -17,7 +17,7 @@ int create_fifo(const char* path, mode_t mode) {
     return -1;
 }
 
-int open_fifo_read(const char* path) {
+int open_for_reading(const char* path) {
     int fd;
     do {
         fd = open(path, O_RDONLY);
@@ -26,7 +26,7 @@ int open_fifo_read(const char* path) {
     return fd;
 }
 
-int open_fifo_write(const char* path) {
+int open_for_writing(const char* path) {
     int fd;
     do {
         fd = open(path, O_WRONLY);
@@ -35,29 +35,30 @@ int open_fifo_write(const char* path) {
     return fd;
 }
 
-int send_response(const char* fifo, response_msg_t resp) {
-    int fd = open_fifo_write(fifo);
+int send_response(const char* fifo, response_t resp) {
+    int fd = open_for_writing(fifo);
     if (fd == -1) return -1;
 
-    if (write_exact(fd, &resp, sizeof(resp)) == -1) { printf(BOLD RED"[ERRORE] Failed to send response to %s"RES"\n", fifo); close(fd); return -1;} 
+    if (write_message(fd, &resp, sizeof(resp)) == -1) { printf(BOLD RED"[ERRORE] Failed to send response to %s"RES"\n", fifo); perror("send_response"); close(fd); return -1;} 
     close(fd);
     return 0;
 }
 
-int send_request(const char* server_fifo, request_msg_t req) {
-    int fd = open_fifo_write(server_fifo);
+int send_request(const char* server_fifo, request_t req) {
+    int fd = open_for_writing(server_fifo);
     if (fd == -1) return -1;
 
-    if (write_exact(fd, &req, sizeof(req)) == -1) { printf(BOLD RED"[ERRORE] Failed to send request to %s"RES"\n", server_fifo); }
+    if (write_message(fd, &req, sizeof(req)) == -1) { printf(BOLD RED"[ERRORE] Failed to send request to %s"RES"\n", server_fifo); perror("send_request"); }
     close(fd);
     return fd;
 }
 
-int read_response(const char* fifo, response_msg_t* resp) {
-    int fd = open_fifo_read(fifo);
+int read_response(const char* fifo, response_t* resp) {
+    int fd = open_for_reading(fifo);
     if (fd == -1) return -1;
     
-    if (read_exact(fd, resp, sizeof(*resp)) == -1) {
+    if (read_message(fd, resp, sizeof(*resp)) == -1) {
+        printf(BOLD RED"[ERRORE] Failed to read response to %s"RES"\n", fifo); perror("read_response"); 
         close(fd);
         return -1;
     }
@@ -66,8 +67,8 @@ int read_response(const char* fifo, response_msg_t* resp) {
     return 0;
 }
 
-int read_exact(int fd, void* buf, size_t n) {
-    char* p = (char*)buf;
+int read_message(int fd, void* buffer, size_t n) {
+    char* p = (char*)buffer;
     size_t remaining = n;
 
     while (remaining > 0) {
@@ -84,8 +85,8 @@ int read_exact(int fd, void* buf, size_t n) {
     return 0;
 }
 
-int write_exact(int fd, const void* buf, size_t n) {
-    const char* p = (const char*)buf;
+int write_message(int fd, const void* buffer, size_t n) {
+    const char* p = (const char*)buffer;
     size_t remaining = n;
 
     while (remaining > 0) {
@@ -102,19 +103,8 @@ int write_exact(int fd, const void* buf, size_t n) {
     return 0;
 }
 
-double get_time_diff(struct timespec start, struct timespec end) {
-
+double elapsed_time(struct timespec start, struct timespec end) {
     double result = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9 ; 
     return result;
 }
 
-void print_usage(const char* progname) {
-    printf("Usage: %s [OPTIONS]\n", progname);
-    printf("Options:\n");
-    printf("  -h, --help              Show this help message\n");
-    printf("  -t, --threads N         Number of worker threads (default: 4)\n");
-    printf("  -o, --order <asc|desc>  File processing order (default: asc)\n");
-    printf("  -s, --statistics        Show server statistics\n");
-    printf("  -c, --close             Terminate server\n");
-    printf("  FILE                    Request hash for FILE\n");
-}

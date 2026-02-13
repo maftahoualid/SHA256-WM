@@ -9,22 +9,22 @@
 server_t* g_server = NULL;
 
 int main(int argc, char* argv[]) {
+    setvbuf(stdout, NULL, _IONBF, 0);
 
-    signal(SIGINT, signal_handler);
-    signal(SIGTERM, signal_handler);
+    signal(SIGINT, sig_handler);
+    signal(SIGTERM, sig_handler);
     signal(SIGPIPE, SIG_IGN);
 
     int errno = 0;
     char* endptr;
-    setvbuf(stdout, NULL, _IONBF, 0);
 
-    int n_threads = DEFAULT_THREADS;
-    int sched_order = ASCENDANT;
+    int n_threads = DEFAULT_THREADS_NUM;
+    int sched_order = ASCENDING;
 
     int opt;
     static struct option long_options[] = {
         {"threads",     required_argument, 0, 't'},
-        {"order",       required_argument, 0, 'o'},
+        {"ordine",      required_argument, 0, 'o'},
         {"help",        no_argument,       0, 'h'},
         {0,             0,                 0,  0 }
     };
@@ -34,19 +34,19 @@ int main(int argc, char* argv[]) {
         switch (opt) {
             case 't':
                 n_threads = strtol(optarg, &endptr, 10);
-                EXIT_IF(errno != 0 || *endptr != '\0' || n_threads <= 0 || n_threads > MAX_THREADS, "[SERVER][ERRORE] Numero thread non valido (1-%d): %s", MAX_THREADS, optarg);
+                EXIT_IF(errno != 0 || *endptr != '\0' || n_threads <= 0 || n_threads > MAX_THREADS_NUM, BOLD RED"[SERVER] Numero thread non valido (1-%d): %s"RES, MAX_THREADS_NUM, optarg);
                 break;
             case 'o':
-                if (strcmp(optarg, "asc") == 0) sched_order = ASCENDANT;
-                else if (strcmp(optarg, "desc") == 0) sched_order = DESCENDANT;
-                else FATAL("[SERVER][ERRORE] L'ordine deve essere 'asc' o 'desc'\n");
+                if (strcmp(optarg, "asc") == 0) sched_order = ASCENDING;
+                else if (strcmp(optarg, "desc") == 0) sched_order = DESCENDING;
+                else FATAL(BOLD RED"[SERVER] L'ordine deve essere 'asc' o 'desc'"RES"\n");
                 break;
             case 'h':
-                print_usage(argv[0]);
+                server_help(argv[0]);
                 return 0;
             case '?':
-                print_usage(argv[0]);
-                FATAL("[SERVER][ERRORE] Parametro non valido\n");
+                server_help(argv[0]);
+                FATAL(BOLD RED"[SERVER] Parametro non valido"RES"\n");
             default:
                 abort();
         }
@@ -54,9 +54,9 @@ int main(int argc, char* argv[]) {
 
     server_t server;
     g_server = &server;
-    EXIT_IF(init_server(&server, n_threads, sched_order) == -1, "[SERVER][ERRORE] Inizializzazione server fallita");
+    EXIT_IF(init_server(&server, n_threads, sched_order) == -1, BOLD RED"[SERVER] Inizializzazione server fallita"RES"\n");
     int s = run_server(&server);
     close_server(&server);
-    unlink(REQUEST_FIFO_PATH);
+    unlink(REQ_FIFO_PATH);
     return s;
 }

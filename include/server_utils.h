@@ -5,7 +5,7 @@
 
 extern server_t* g_server;
 
-int compute_sha256(const char* filepath, char* hash_hex);
+int compute_sha256(const char* path, char* hash_string);
 
 void close_queue(job_queue_t* queue);
 
@@ -15,22 +15,24 @@ int get_from_queue(job_queue_t* queue, job_t* j);
 
 void close_cache(cache_t* cache);
 
-cache_entry_t* get_cache_entry(cache_t* cache, const char* path);
+entry_t* get_cache_entry(cache_t* cache, const char* path);
 
-bool search_cache(cache_t* cache, const char* path, off_t size, time_t last_upd_sec, long last_upd_nsec, char* hash_out);
+bool search_cache(cache_t* cache, const char* path, off_t size, time_t last_upd_sec, long last_upd_nsec, char* hash_string);
 
 void add_to_cache(cache_t* cache, const char* path, off_t size, time_t last_upd_sec, long last_upd_nsec, const char* hash);
 
-void signal_handler(int sig);
+void sig_handler(int sig);
 
 void* thread_function(void* arg);
 
-int init_server(server_t* ctx, int num_workers, int order);
+int init_server(server_t* server, int n_threads, int order);
 
-void close_server(server_t* ctx);
+void close_server(server_t* server);
 
-int run_server(server_t* ctx);
+int run_server(server_t* server);
 
 void show_statistics(const stats_t* stats);
+
+void server_help(const char* name);
 
 #endif
